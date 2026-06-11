@@ -12,57 +12,76 @@
 # ---
 
 # %% [markdown]
-# # ASR mortar expansion — publication pipeline (v11)
+# # Machine-learning prediction of ASR mortar expansion
 #
-# Machine-learning prediction of alkali–silica reaction (ASR) mortar-bar
-# expansion. Stacked ensemble (LightGBM + CatBoost + TabPFN, BayesianRidge
-# meta-learner) with a complete, reproducible evaluation suite:
+# Stacked ensemble (LightGBM + CatBoost + TabPFN → BayesianRidge meta-learner)
+# for predicting alkali–silica reaction (ASR) mortar-bar expansion from
+# mixture, binder-composition, and exposure descriptors.
 #
-# | Section | Output |
+# **Modeling protocol**
+#
+# | Component | Setting |
 # |---|---|
-# | 10-fold fold-pure cross-validation | Table S1, Fig. 10a |
-# | Baseline / single-model comparison | Table S2, Fig. 4 |
-# | 80/20 holdout evaluation | Fig. 1 (parity), Fig. 6 (residual diagnostics) |
-# | Split-conformal prediction intervals | Fig. 9 |
-# | SHAP feature attribution | Fig. 2 (beeswarm), Fig. 3 (bar) |
-# | Feature correlation structure | Fig. 7 |
-# | Learning curve (data efficiency) | Fig. 5 |
-# | y-randomization (chance-performance) test | Fig. 8 |
-# | Multi-seed holdout stability | Table S3, Fig. 10b |
+# | Features | 17 base + 5 engineered = 22 (ablation-selected) |
+# | Imputation | conditional median by SCM presence + FA-class mode, refit per fold |
+# | Target transform | Box–Cox (λ = 0.85), shift refit per fold |
+# | Ensemble | LightGBM + CatBoost + TabPFN, BayesianRidge meta-learner |
+# | Stacking | fold-pure: meta-learner trained on inner out-of-fold predictions only |
+# | Evaluation | 10-fold stratified CV (y-quantile bins) + 80/20 holdout (seed 256) |
 #
-# All figures are rendered inline and saved to `figures/` as 600-dpi PNG and
-# vector PDF; all tables are saved to `results/` as CSV. A ZIP archive of both
-# folders is created at the end for download.
+# **Analysis suite and outputs**
 #
-# **Usage (Google Colab).** Upload the dataset CSV (or mount Drive), set
-# `CSV_PATH` in the *Configuration* cell, then *Runtime → Run all*. A GPU
-# runtime is recommended for TabPFN; without a GPU (or without `tabpfn`
-# installed) the pipeline automatically falls back to the two
-# gradient-boosting learners.
+# | Analysis | Figure | Table |
+# |---|---|---|
+# | Dataset overview | Fig. S1 | Table S0 |
+# | 10-fold fold-pure cross-validation | Fig. 10a | Table S1 |
+# | Baseline / single-model comparison | Fig. 4 | Table S2 |
+# | 80/20 holdout (parity, residual diagnostics) | Figs. 1, 6 | Table S4 |
+# | Split-conformal 90 % prediction intervals | Fig. 9 | Table S9 |
+# | SHAP feature attribution | Figs. 2, 3 | Table S5 |
+# | Feature–target correlation structure | Fig. 7 | Table S6 |
+# | Learning curve (data efficiency) | Fig. 5 | Table S7 |
+# | y-randomization (chance-performance test) | Fig. 8 | Table S8 |
+# | Multi-seed holdout stability | Fig. 10b | Table S3 |
+#
+# All figures are rendered inline and saved to `figures/` (600-dpi PNG +
+# vector PDF); all tables are saved to `results/` (CSV). A ZIP archive of both
+# folders is created at the end.
+#
+# **Usage (Google Colab).** Select a GPU runtime (recommended for TabPFN),
+# upload the dataset CSV to `/content/`, add your TabPFN license token as a
+# Colab secret named `TABPFN_TOKEN` (key icon in the sidebar, notebook access
+# ON; free token from https://ux.priorlabs.ai/account), then *Runtime → Run
+# all*. Without a token or without `tabpfn` installed, the pipeline
+# automatically falls back to the two-learner (LightGBM + CatBoost) stack.
 
 # %% [markdown]
 # ## 1. Setup
 
 # %%
 import importlib.util
+import os
 import subprocess
 import sys
 
 
 def _ensure(packages):
-    missing = [p for p in packages if importlib.util.find_spec(p.split("==")[0].replace("-", "_")) is None]
+    missing = [p for p in packages
+               if importlib.util.find_spec(p.replace("-", "_")) is None]
     if missing:
-        subprocess.check_call([sys.executable, "-m", "pip", "install", "--quiet", *missing])
+        subprocess.check_call([sys.executable, "-m", "pip", "install",
+                               "--quiet", *missing])
 
 
-_ensure(["lightgbm", "catboost", "shap"])
-try:  # TabPFN is optional: the ensemble degrades gracefully without it
-    _ensure(["tabpfn"])
-except Exception as exc:  # noqa: BLE001
-    print(f"tabpfn could not be installed ({exc}); continuing without it.")
+if os.environ.get("ASR_SKIP_INSTALL", "0") != "1":
+    _ensure(["lightgbm", "catboost", "shap"])
+    try:  # TabPFN is optional: the ensemble degrades gracefully without it
+        _ensure(["tabpfn"])
+    except Exception as exc:
+        print(f"tabpfn could not be installed ({exc}); continuing without it.")
 
 # %%
-import os
+import gc
 import platform
 import random
 import warnings
@@ -74,94 +93,74 @@ import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
 import scipy.stats as st
-import shap
 import sklearn
+from scipy.special import boxcox
 from catboost import CatBoostRegressor
 from lightgbm import LGBMRegressor
-from sklearn.ensemble import RandomForestRegressor
+from sklearn.ensemble import RandomForestRegressor, StackingRegressor
 from sklearn.linear_model import BayesianRidge, Ridge
-from sklearn.model_selection import KFold, train_test_split
+from sklearn.metrics import mean_absolute_error, mean_squared_error, r2_score
+from sklearn.model_selection import KFold, StratifiedKFold, train_test_split
 from sklearn.neighbors import KNeighborsRegressor
 from sklearn.pipeline import make_pipeline
 from sklearn.preprocessing import StandardScaler
 
-warnings.filterwarnings("ignore", category=UserWarning)
-warnings.filterwarnings("ignore", category=FutureWarning)
-os.environ.setdefault("TABPFN_DISABLE_TELEMETRY", "1")
+warnings.filterwarnings("ignore")
 
-try:
-    import torch
-
-    DEVICE = "cuda" if torch.cuda.is_available() else "cpu"
-except ImportError:
-    DEVICE = "cpu"
-
-try:
-    from tabpfn import TabPFNRegressor
-
-    HAS_TABPFN = True
-except ImportError:
-    TabPFNRegressor = None
-    HAS_TABPFN = False
-
-if HAS_TABPFN:  # verify TabPFN can actually load its model weights
-    try:
-        _rng = np.random.default_rng(0)
-        _probe = TabPFNRegressor(device=DEVICE)
-        _probe.fit(_rng.random((20, 3)), _rng.random(20))
-        _probe.predict(_rng.random((2, 3)))
-    except Exception as exc:  # noqa: BLE001
-        HAS_TABPFN = False
-        print("tabpfn is installed but unusable; falling back to LGBM+CatBoost.")
-        print(f"  reason: {type(exc).__name__}: {str(exc).splitlines()[0]}")
-        print("  (If the model is gated, accept its license on Hugging Face and set HF_TOKEN.)")
-
-print(f"python    : {platform.python_version()}")
-for _m in (np, pd, sklearn, mpl, shap):
-    print(f"{_m.__name__:<10}: {_m.__version__}")
-print(f"tabpfn    : {'available, device=' + DEVICE if HAS_TABPFN else 'NOT available (fallback: LGBM+CatBoost)'}")
+print(f"python      : {platform.python_version()}")
+for _m in (np, pd, sklearn, mpl):
+    print(f"{_m.__name__:<12}: {_m.__version__}")
+import lightgbm as _lgb, catboost as _cb  # noqa: E401
+print(f"lightgbm    : {_lgb.__version__}")
+print(f"catboost    : {_cb.__version__}")
 
 # %% [markdown]
 # ## 2. Configuration
 
 # %%
-CSV_PATH = os.environ.get("ASR_CSV_PATH", "/content/ASR_FinalE-ComCo.csv")  # path to the dataset
-TARGET_COLUMN = None        # None -> last column of the CSV is the target
-EXCLUDED_FEATURES = []      # feature columns to exclude from the model
-TARGET_LABEL = "Expansion (%)"  # axis label used in figures
-UNIT = "%"                  # unit of the target, used in printed reports
+CSV_PATH     = os.environ.get("ASR_CSV_PATH", "/content/ASR_FinalE-ComCo.csv")
+TARGET       = "y"
+TARGET_LABEL = "expansion (%)"   # axis label used in figures
+UNIT         = "%"
 
-SEED = 256                  # primary random seed (holdout split, models)
-N_FOLDS = 10                # outer cross-validation folds
-N_INNER_FOLDS = 5           # inner folds for out-of-fold meta-feature stacking
-TEST_FRACTION = 0.20        # holdout fraction
-CALIB_FRACTION = 0.15       # fraction of the training set used for conformal calibration
-CONFORMAL_LEVEL = 0.90      # target coverage of conformal intervals
+RANDOM_STATE = 256               # holdout split + model seeds
+TEST_SIZE    = 0.20
+CV_FOLDS     = 10
+LAMBDA_BC    = 0.85              # Box-Cox exponent for the target
+EPS_SHIFT    = 1e-4              # shift so the transformed target is > 0
+
+USE_TABPFN    = True             # False reproduces the 2-learner stack
+TABPFN_DEVICE = "auto"           # "cpu", "cuda", or "auto"
+
+CONF_ALPHA = 0.10                # 1 - target coverage (0.10 -> 90 % intervals)
 STABILITY_SEEDS = [256, 7, 42, 101, 2024]
-N_PERMUTATIONS = 10         # y-randomization repeats
+N_PERMUTATIONS = 10              # y-randomization repeats
 LEARNING_CURVE_SIZES = [0.2, 0.4, 0.6, 0.8, 1.0]
 
-RUN_CV = True
 RUN_MODEL_COMPARISON = True
-RUN_CONFORMAL = True
-RUN_SHAP = True
-RUN_LEARNING_CURVE = True
-RUN_Y_RANDOMIZATION = True
-RUN_SEED_STABILITY = True
+RUN_CONFORMAL        = True
+RUN_SHAP             = True
+RUN_LEARNING_CURVE   = True
+RUN_Y_RANDOMIZATION  = True
+RUN_SEED_STABILITY   = True
 
-FAST_MODE = os.environ.get("ASR_FAST_MODE", "0") == "1"  # reduced settings for smoke tests
+# Map feature codes to descriptive names for figure labels (codes are kept
+# where no entry is given); edit to match the manuscript's variable names.
+FEATURE_LABELS = {}
+
+FAST_MODE = os.environ.get("ASR_FAST_MODE", "0") == "1"  # reduced smoke test
 if FAST_MODE:
-    N_FOLDS, N_INNER_FOLDS, N_PERMUTATIONS = 3, 3, 3
+    CV_FOLDS, N_PERMUTATIONS = 3, 2
     STABILITY_SEEDS = STABILITY_SEEDS[:2]
-    LEARNING_CURVE_SIZES = [0.4, 1.0]
+    LEARNING_CURVE_SIZES = [0.5, 1.0]
 
 FIG_DIR = Path("figures")
 RES_DIR = Path("results")
 FIG_DIR.mkdir(exist_ok=True)
 RES_DIR.mkdir(exist_ok=True)
 
-random.seed(SEED)
-np.random.seed(SEED)
+random.seed(RANDOM_STATE)
+np.random.seed(RANDOM_STATE)
 
 # %% [markdown]
 # ## 3. Figure style (journal defaults)
@@ -183,7 +182,7 @@ mpl.rcParams.update({
     "figure.dpi": 110,
     "savefig.dpi": 600,
     "savefig.bbox": "tight",
-    "pdf.fonttype": 42,  # embed TrueType fonts (editable text in PDFs)
+    "pdf.fonttype": 42,  # embed TrueType fonts -> editable text in PDFs
     "ps.fonttype": 42,
 })
 
@@ -199,369 +198,668 @@ def save_fig(fig, name):
     fig.savefig(FIG_DIR / f"{name}.pdf")
     print(f"saved {FIG_DIR}/{name}.png/.pdf")
     plt.show()
+    plt.close(fig)
 
 # %% [markdown]
-# ## 4. Data loading
+# ## 4. Features
+#
+# 27 base columns are loaded from the CSV. Ten of them were removed from the
+# model input by the ablation study (FA composition/class and CNS composition
+# descriptors), but remain loaded because `X21`/`x27` feed the engineered
+# `SCM_alkali` feature and `x15` is needed for imputation. Five engineered
+# features are added, giving 22 active model features.
 
 # %%
-def load_dataset(csv_path, target_column=None, excluded=()):
-    df = pd.read_csv(csv_path)
-    target = target_column or df.columns[-1]
+BASE_FEATURES_LOADED = [
+    "x1", "x2", "x3", "x4", "x5", "x7", "x9", "x10",
+    "x11", "x12", "x13", "x14", "x15", "x16", "x17", "x18", "x19", "x20",
+    "X21", "x22", "x23", "x24", "x25", "x26", "x27", "x28", "x29",
+]
 
-    # Drop rows whose target is non-numeric/missing (e.g. a units/description row)
-    y_raw = pd.to_numeric(df[target], errors="coerce")
-    bad = y_raw.isna()
-    if bad.any():
-        print(f"dropped {int(bad.sum())} row(s) with non-numeric/missing target.")
-    df = df.loc[~bad].reset_index(drop=True)
+DROPPED_FROM_BASELINE = [
+    "x15", "x16", "x17", "x19", "X21",   # FA composition / class
+    "x22", "x23", "x24", "x26", "x27",   # CNS composition
+]
 
-    y = pd.to_numeric(df[target], errors="coerce").astype(float)
-    X_raw = df.drop(columns=[target]).apply(pd.to_numeric, errors="coerce")
-    X_raw = X_raw.dropna(axis=1, how="all")
-    X = X_raw.drop(columns=[c for c in excluded if c in X_raw.columns])
+ENGINEERED = ["total_SCM", "age_x_temp", "silica_x_alkali", "log_age", "SCM_alkali"]
 
-    n_imputed = int(X.isna().sum().sum())
-    if n_imputed:
-        print(f"imputed {n_imputed} missing feature value(s) with column medians.")
-        X = X.fillna(X.median(numeric_only=True))
+_ALL_BASELINE = BASE_FEATURES_LOADED + ENGINEERED
+ALL_FEATURES  = [f for f in _ALL_BASELINE if f not in DROPPED_FROM_BASELINE]  # 22
+DISPLAY_NAMES = [FEATURE_LABELS.get(f, f) for f in ALL_FEATURES]
 
-    print(f"Loaded {csv_path}: raw X={X_raw.shape}, y={y.shape}  "
-          f"(active model features = {X.shape[1]})")
-    return X, y.to_numpy(), X_raw
-
-
-X_df, y, X_raw_df = load_dataset(CSV_PATH, TARGET_COLUMN, EXCLUDED_FEATURES)
-FEATURES = list(X_df.columns)
-X = X_df.to_numpy(dtype=float)
-
-summary = pd.DataFrame({
-    "mean": X_df.mean(), "std": X_df.std(), "min": X_df.min(),
-    "median": X_df.median(), "max": X_df.max(),
-}).round(4)
-summary.to_csv(RES_DIR / "Table_S0_feature_summary.csv")
-summary.head(10)
+# imputation groups: SCM composition columns conditioned on their content column
+mk_prop_cols  = ["x11", "x12", "x14"]                # gated by x13 (MK content %)
+fa_prop_cols  = ["x16", "x17", "x18", "x19", "X21"]  # gated by x20 (FA content %)
+cns_prop_cols = ["x22", "x23", "x24", "x26", "x27"]  # gated by x25 (CNS content %)
 
 # %% [markdown]
-# ## 5. Metrics
+# ## 5. Preprocessing and target transform
+#
+# Both are *fold-pure*: imputation statistics and the Box–Cox shift are
+# learned from the training portion of each split only, and then applied to
+# the corresponding validation/test portion.
 
 # %%
-def metrics(y_true, y_pred):
-    y_true, y_pred = np.asarray(y_true, float), np.asarray(y_pred, float)
-    resid = y_true - y_pred
-    ss_res = float(np.sum(resid**2))
-    ss_tot = float(np.sum((y_true - y_true.mean()) ** 2))
-    nz = np.abs(y_true) > 1e-12  # MAPE is undefined at zero targets
-    ape = np.abs(resid[nz] / y_true[nz]) * 100.0
-    return {
-        "R2": 1.0 - ss_res / ss_tot,
-        "RMSE": float(np.sqrt(np.mean(resid**2))),
-        "MAE": float(np.mean(np.abs(resid))),
-        "MAPE": float(np.mean(ape)),
-        "MedAPE": float(np.median(ape)),
-    }
+def fit_preprocessing(train_df):
+    """Learn fill values from the training split only."""
+    fill = {}
+
+    def cond_median(prop_cols, content_col):
+        present = train_df[content_col].fillna(0) > 0
+        for c in prop_cols:
+            src = train_df.loc[present, c].dropna()
+            fill[c] = float(src.median()) if len(src) else 0.0
+
+    cond_median(mk_prop_cols,  "x13")
+    cond_median(fa_prop_cols,  "x20")
+    cond_median(cns_prop_cols, "x25")
+
+    for c in ["x13", "x20", "x25"]:
+        src = train_df[c].dropna()
+        fill[c] = float(src.median()) if len(src) else 0.0
+
+    fa_mode = train_df.loc[train_df["x20"].fillna(0) > 0, "x15"].dropna().mode()
+    x15_fill = float(fa_mode.iloc[0]) if len(fa_mode) else 1.0
+
+    for c in BASE_FEATURES_LOADED:
+        if c == "x15" or c in fill:
+            continue
+        src = train_df[c].dropna()
+        fill[c] = float(src.median()) if len(src) else 0.0
+
+    return {"fill": fill, "x15_fill": x15_fill}
 
 
-def fmt(m, keys=("R2", "RMSE", "MAE")):
-    return "  ".join(f"{k}={m[k]:.4f}" for k in keys)
+def apply_preprocessing(df, state):
+    out = df.copy()
+    for c, v in state["fill"].items():
+        if c in out.columns:
+            out[c] = out[c].fillna(v)
+    out["x15"] = out["x15"].fillna(state["x15_fill"])
+    return out
+
+
+def add_engineered(df):
+    d = df.copy()
+    d["total_SCM"]       = d["x13"] + d["x20"] + d["x25"]
+    d["age_x_temp"]      = d["x29"] * d["x7"]
+    d["silica_x_alkali"] = d["x1"]  * d["x5"]
+    d["log_age"]         = np.log1p(d["x29"].clip(lower=0))
+    d["SCM_alkali"]      = d["x14"] + d["X21"] + d["x27"]
+    return d
+
+
+def build_matrix(raw_df, state):
+    """raw -> impute -> engineer -> select the 22 active features."""
+    return add_engineered(apply_preprocessing(raw_df, state))[ALL_FEATURES]
+
+
+def fit_bc_shift(y_train):
+    """shift = train_min - eps, so (y - shift) >= eps > 0 for Box-Cox."""
+    return float(np.min(y_train) - EPS_SHIFT)
+
+
+def bc_forward(y, shift, lam=LAMBDA_BC):
+    return boxcox(np.asarray(y, float) - shift, lam)
+
+
+def bc_inverse(z, shift, lam=LAMBDA_BC, eps=1e-9):
+    base = np.clip(lam * np.asarray(z, float) + 1.0, eps, None) ** (1.0 / lam)
+    return base + shift
 
 # %% [markdown]
 # ## 6. Models
 #
-# `StackedEnsemble` implements *fold-pure* stacking: the BayesianRidge
-# meta-learner is trained exclusively on inner out-of-fold predictions of the
-# base learners, so no base learner ever predicts a sample it was trained on.
-# The base learners are then refit on the full training set for inference.
+# The stack uses scikit-learn's `StackingRegressor`: each base learner
+# produces inner out-of-fold predictions (5-fold, fixed seed), the
+# BayesianRidge meta-learner is fitted on those leak-free predictions only,
+# and the base learners are then refit on the full training data for
+# inference. `n_jobs=1` across the stack avoids nesting joblib parallelism
+# with GPU-backed learners.
 
 # %%
-def make_lgbm(seed):
-    return LGBMRegressor(
-        n_estimators=2000, learning_rate=0.02, num_leaves=63,
-        min_child_samples=10, subsample=0.85, subsample_freq=1,
-        colsample_bytree=0.85, reg_alpha=0.1, reg_lambda=1.0,
-        random_state=seed, n_jobs=-1, verbosity=-1,
-    )
+LGBM_PARAMS = dict(
+    n_estimators=2900, max_depth=8, learning_rate=0.0561,
+    subsample=0.624, colsample_bytree=0.783, reg_alpha=0.030, reg_lambda=2.884,
+    min_child_samples=7, num_leaves=32, n_jobs=-1, verbose=-1,
+)
+CAT_PARAMS = dict(
+    iterations=2600, depth=10, learning_rate=0.0825,
+    l2_leaf_reg=15.34, bagging_temperature=0.242, random_strength=0.414,
+    verbose=0, allow_writing_files=False,
+)
+if FAST_MODE:
+    LGBM_PARAMS["n_estimators"] = 300
+    CAT_PARAMS["iterations"] = 300
 
 
-def make_catboost(seed):
-    return CatBoostRegressor(
-        iterations=1500, learning_rate=0.04, depth=6, l2_leaf_reg=3.0,
-        loss_function="RMSE", random_seed=seed, verbose=0, allow_writing_files=False,
-    )
-
-
-def make_tabpfn(seed):
+def resolve_device(spec=TABPFN_DEVICE):
+    if spec != "auto":
+        return spec
     try:
-        return TabPFNRegressor(device=DEVICE, random_state=seed)
-    except TypeError:  # older tabpfn versions use different constructor args
-        return TabPFNRegressor(device=DEVICE)
+        import torch
+        return "cuda" if torch.cuda.is_available() else "cpu"
+    except Exception:
+        return "cpu"
 
 
-def base_learners(seed, use_tabpfn=True):
-    models = {"lgbm": make_lgbm(seed), "catboost": make_catboost(seed)}
-    if use_tabpfn and HAS_TABPFN:
-        models["tabpfn"] = make_tabpfn(seed)
-    return models
+def make_lgbm(random_state=RANDOM_STATE):
+    return LGBMRegressor(**LGBM_PARAMS, random_state=random_state + 1)
 
 
-class StackedEnsemble:
-    """Fold-pure stacking of base regressors with a BayesianRidge meta-learner."""
-
-    def __init__(self, seed=SEED, n_inner_folds=N_INNER_FOLDS, use_tabpfn=True):
-        self.seed = seed
-        self.n_inner_folds = n_inner_folds
-        self.use_tabpfn = use_tabpfn
-
-    def fit(self, X, y):
-        X, y = np.asarray(X, float), np.asarray(y, float)
-        names = list(base_learners(self.seed, self.use_tabpfn))
-        oof = np.zeros((len(y), len(names)))
-        inner = KFold(self.n_inner_folds, shuffle=True, random_state=self.seed)
-        for tr, va in inner.split(X):
-            fold_models = base_learners(self.seed, self.use_tabpfn)
-            for j, name in enumerate(names):
-                fold_models[name].fit(X[tr], y[tr])
-                oof[va, j] = fold_models[name].predict(X[va])
-        self.meta_ = BayesianRidge().fit(oof, y)
-        self.models_ = base_learners(self.seed, self.use_tabpfn)
-        for model in self.models_.values():
-            model.fit(X, y)
-        self.names_ = names
-        return self
-
-    def base_predictions(self, X):
-        return np.column_stack([self.models_[n].predict(np.asarray(X, float)) for n in self.names_])
-
-    def predict(self, X):
-        return self.meta_.predict(self.base_predictions(X))
-
-    @property
-    def weights(self):
-        return {n: round(float(w), 4) for n, w in zip(self.names_, self.meta_.coef_)}
+def make_catboost(random_state=RANDOM_STATE):
+    return CatBoostRegressor(**CAT_PARAMS, random_seed=random_state + 2)
 
 
-def comparison_models(seed):
-    """Baselines and single learners evaluated under the same CV protocol."""
-    models = {
-        "Ridge (linear)": make_pipeline(StandardScaler(), Ridge(alpha=1.0, random_state=seed)),
-        "k-NN": make_pipeline(StandardScaler(), KNeighborsRegressor(n_neighbors=5, weights="distance")),
-        "Random Forest": RandomForestRegressor(n_estimators=500, min_samples_leaf=2,
-                                               random_state=seed, n_jobs=-1),
-        "LightGBM": make_lgbm(seed),
-        "CatBoost": make_catboost(seed),
-    }
-    if HAS_TABPFN:
-        models["TabPFN"] = make_tabpfn(seed)
-    models["Stacked ensemble"] = StackedEnsemble(seed)
-    return models
+def make_tabpfn(random_state=RANDOM_STATE):
+    from tabpfn import TabPFNRegressor
+    return TabPFNRegressor(device=resolve_device(), random_state=random_state,
+                           ignore_pretraining_limits=True)
+
+
+def make_stack(use_tabpfn, random_state=RANDOM_STATE):
+    estimators = [("lgbm", make_lgbm(random_state)),
+                  ("catboost", make_catboost(random_state))]
+    if use_tabpfn:
+        estimators.append(("tabpfn", make_tabpfn(random_state)))
+    return StackingRegressor(
+        estimators=estimators,
+        final_estimator=BayesianRidge(),
+        cv=KFold(n_splits=5, shuffle=True, random_state=random_state),
+        n_jobs=1,
+        passthrough=False,
+    )
+
+
+def cleanup():
+    gc.collect()
+    try:
+        import torch
+        if torch.cuda.is_available():
+            torch.cuda.empty_cache()
+    except Exception:
+        pass
 
 # %% [markdown]
-# ## 7. 10-fold fold-pure cross-validation
+# ### TabPFN availability
+#
+# TabPFN weights require a one-time free license token. The token is read
+# from the environment (`TABPFN_TOKEN`) or from a Colab secret — it is never
+# hard-coded in this notebook. A small probe fit verifies that the weights
+# can actually be loaded; otherwise the pipeline falls back to the
+# two-learner stack.
 
 # %%
-def cross_validate(model_factory, X, y, n_folds=N_FOLDS, seed=SEED, verbose=True):
-    folds, oof = [], np.zeros(len(y))
-    for k, (tr, te) in enumerate(KFold(n_folds, shuffle=True, random_state=seed).split(X), 1):
-        model = model_factory()
-        model.fit(X[tr], y[tr])
-        pred = model.predict(X[te])
-        oof[te] = pred
-        m = metrics(y[te], pred)
-        folds.append(m)
-        if verbose:
-            print(f"  fold {k:2d}:  R2={m['R2']:.4f}  RMSE={m['RMSE']:.4f}  MAE={m['MAE']:.4f}")
-    return pd.DataFrame(folds, index=range(1, n_folds + 1)), oof
+def bootstrap_tabpfn_token():
+    if os.environ.get("TABPFN_TOKEN"):
+        return True
+    try:
+        from google.colab import userdata  # only available inside Colab
+        candidates = ("TABPFN_TOKEN", "TABPFN", "TABPFN_1", "TABPFN_T",
+                      "TABPFN_KEY", "TABPFN_API_KEY", "PRIORLABS_TOKEN")
+        for name in candidates:
+            try:
+                tok = userdata.get(name)
+            except Exception:
+                tok = None
+            if tok:
+                os.environ["TABPFN_TOKEN"] = tok
+                print(f"TabPFN token loaded from Colab secret '{name}'.")
+                return True
+        print("No TabPFN Colab secret found; name your secret TABPFN_TOKEN "
+              "(key icon, notebook access ON).")
+    except Exception:
+        pass
+    return bool(os.environ.get("TABPFN_TOKEN"))
 
 
-ensemble_label = "LGBM+CatBoost+TabPFN" if HAS_TABPFN else "LGBM+CatBoost"
-if RUN_CV:
-    print(f"=== {N_FOLDS}-fold fold-pure CV ({ensemble_label}) ===")
-    cv_table, oof_pred = cross_validate(lambda: StackedEnsemble(SEED), X, y)
-    print("\n  per-fold mean +/- std:")
-    for col in cv_table.columns:
-        print(f"    {col:<6}: {cv_table[col].mean():.4f} +/- {cv_table[col].std():.4f}")
-    oof_metrics = metrics(y, oof_pred)
-    print(f"  pooled OOF R2 = {oof_metrics['R2']:.4f}")
-    cv_table.round(4).to_csv(RES_DIR / "Table_S1_cv_per_fold_metrics.csv", index_label="fold")
+def tabpfn_available():
+    if not USE_TABPFN:
+        return False
+    try:
+        import tabpfn  # noqa: F401
+    except ImportError:
+        print("tabpfn is not installed -> falling back to LGBM+CatBoost.")
+        return False
+    bootstrap_tabpfn_token()
+    try:
+        rng = np.random.default_rng(0)
+        probe = make_tabpfn()
+        probe.fit(rng.random((20, 3)), rng.random(20))
+        probe.predict(rng.random((2, 3)))
+        del probe
+        cleanup()
+        return True
+    except Exception as exc:
+        print("tabpfn is installed but unusable -> falling back to LGBM+CatBoost.")
+        print(f"  reason: {type(exc).__name__}: {str(exc).splitlines()[0]}")
+        return False
+
+
+HAS_TABPFN = tabpfn_available()
+ENSEMBLE_LABEL = "LGBM+CatBoost+TabPFN" if HAS_TABPFN else "LGBM+CatBoost"
+print(f"ensemble: {ENSEMBLE_LABEL}"
+      + (f" (TabPFN device: {resolve_device()})" if HAS_TABPFN else ""))
 
 # %% [markdown]
-# ## 8. Model comparison (Fig. 4)
+# ## 7. Metrics
+
+# %%
+def metrics(y_true, y_pred):
+    y_true = np.asarray(y_true, float)
+    y_pred = np.asarray(y_pred, float)
+    nz = np.abs(y_true) > 1e-8  # MAPE is undefined at zero expansion
+    ape = (np.abs((y_true[nz] - y_pred[nz]) / y_true[nz]) * 100
+           if nz.any() else np.array([np.nan]))
+    return {
+        "R2":     float(r2_score(y_true, y_pred)),
+        "RMSE":   float(np.sqrt(mean_squared_error(y_true, y_pred))),
+        "MAE":    float(mean_absolute_error(y_true, y_pred)),
+        "MAPE":   float(np.mean(ape)),     # inflated near zero expansion
+        "MedAPE": float(np.median(ape)),   # robust to small denominators
+    }
+
+# %% [markdown]
+# ## 8. Data loading and overview (Fig. S1, Table S0)
+
+# %%
+def load_data(path=CSV_PATH):
+    df = pd.read_csv(path)
+    need = BASE_FEATURES_LOADED + [TARGET]
+    missing = [c for c in need if c not in df.columns]
+    if missing:
+        raise ValueError(f"Columns missing from {path}: {missing}")
+
+    # Some exports carry a second header row of descriptions and/or rows with
+    # no target. Coerce to numeric and drop rows whose target is missing;
+    # genuine missing feature values are preserved (NaN) for the fold-pure
+    # imputer.
+    for c in need:
+        df[c] = pd.to_numeric(df[c], errors="coerce")
+
+    n0 = len(df)
+    df = df[df[TARGET].notna()].reset_index(drop=True)
+    if n0 - len(df):
+        print(f"dropped {n0 - len(df)} row(s) with non-numeric/missing target "
+              f"(e.g. a description header row).")
+
+    X_raw = df[BASE_FEATURES_LOADED].astype(float).reset_index(drop=True)
+    y = df[TARGET].astype(float).reset_index(drop=True)
+    print(f"Loaded {path}: raw X={X_raw.shape}, y={y.shape}  "
+          f"(active model features = {len(ALL_FEATURES)})")
+    return X_raw, y
+
+
+X_raw, y = load_data()
+
+# %%
+# Table S0 — descriptive statistics of the loaded variables
+overview = X_raw.copy()
+overview[TARGET] = y
+table_s0 = pd.DataFrame({
+    "mean": overview.mean(), "std": overview.std(), "min": overview.min(),
+    "median": overview.median(), "max": overview.max(),
+    "missing_%": overview.isna().mean() * 100,
+}).round(4)
+table_s0.to_csv(RES_DIR / "Table_S0_feature_summary.csv")
+table_s0
+
+# %%
+# Fig. S1 — target distribution and feature missingness
+fig, axes = plt.subplots(1, 2, figsize=(7.0, 2.6))
+axes[0].hist(y, bins=40, color=C_BLUE, alpha=0.85)
+axes[0].set_xlabel(f"Measured {TARGET_LABEL}")
+axes[0].set_ylabel("Count")
+miss = (X_raw.isna().mean() * 100).sort_values(ascending=False)
+miss = miss[miss > 0]
+if len(miss):
+    axes[1].bar(range(len(miss)), miss.values, color=C_ORANGE, alpha=0.9)
+    axes[1].set_xticks(range(len(miss)), miss.index, rotation=90, fontsize=6)
+    axes[1].set_ylabel("Missing values (%)")
+else:
+    axes[1].text(0.5, 0.5, "no missing values", ha="center", va="center",
+                 transform=axes[1].transAxes)
+    axes[1].set_axis_off()
+for ax, letter in zip(axes, "ab"):
+    ax.text(-0.14, 1.05, letter, transform=ax.transAxes,
+            fontweight="bold", fontsize=10)
+fig.tight_layout()
+save_fig(fig, "FigS1_DataOverview")
+
+# %% [markdown]
+# ## 9. Cross-validation machinery
+#
+# A single set of stratified splits (y-quantile bins) is generated from the
+# training portion of the 80/20 holdout and reused for every model, so all
+# comparisons in this notebook share identical folds. Within each fold the
+# imputer and the Box–Cox shift are refit on the fold's training portion.
+
+# %%
+def make_strata(y_vals, n_bins=CV_FOLDS):
+    for q in range(n_bins, 1, -1):
+        try:
+            s = pd.qcut(y_vals, q=q, labels=False, duplicates="drop")
+            if pd.Series(s).value_counts().min() >= 2:
+                return np.asarray(s, dtype=int)
+        except ValueError:
+            continue
+    return None
+
+
+def make_cv_splits(Xtr_df, ytr_ser):
+    strata = make_strata(ytr_ser)
+    if strata is not None:
+        splitter = StratifiedKFold(n_splits=CV_FOLDS, shuffle=True,
+                                   random_state=RANDOM_STATE)
+        return list(splitter.split(Xtr_df, strata))
+    splitter = KFold(n_splits=CV_FOLDS, shuffle=True, random_state=RANDOM_STATE)
+    return list(splitter.split(Xtr_df, ytr_ser))
+
+
+def cross_validate(model_factory, Xtr_df, ytr_ser, splits, verbose=True):
+    """Fold-pure CV of any regressor factory under the shared protocol."""
+    oof = np.full(len(ytr_ser), np.nan)
+    rows = []
+    for fold, (tr, va) in enumerate(splits, 1):
+        tr_raw, va_raw = Xtr_df.iloc[tr], Xtr_df.iloc[va]
+        y_tr, y_va = ytr_ser.iloc[tr].to_numpy(), ytr_ser.iloc[va].to_numpy()
+
+        state = fit_preprocessing(tr_raw)
+        X_tr, X_va = build_matrix(tr_raw, state), build_matrix(va_raw, state)
+        shift = fit_bc_shift(y_tr)
+
+        model = model_factory()
+        model.fit(X_tr.to_numpy(), bc_forward(y_tr, shift))
+        pred = bc_inverse(model.predict(X_va.to_numpy()), shift)
+
+        oof[va] = pred
+        m = metrics(y_va, pred)
+        rows.append(m)
+        if verbose:
+            print(f"  fold {fold:2d}:  R2={m['R2']:.4f}  RMSE={m['RMSE']:.4f}  "
+                  f"MAE={m['MAE']:.4f}")
+
+        del model, state, X_tr, X_va
+        cleanup()
+    return pd.DataFrame(rows, index=range(1, len(splits) + 1)), oof
+
+# %% [markdown]
+# ## 10. 10-fold fold-pure cross-validation of the stack (Table S1)
+
+# %%
+idx_tr, idx_te = train_test_split(np.arange(len(y)), test_size=TEST_SIZE,
+                                  random_state=RANDOM_STATE)
+Xtr_raw, Xte_raw = X_raw.iloc[idx_tr].reset_index(drop=True), \
+                   X_raw.iloc[idx_te].reset_index(drop=True)
+ytr, yte = y.iloc[idx_tr].reset_index(drop=True), \
+           y.iloc[idx_te].reset_index(drop=True)
+CV_SPLITS = make_cv_splits(Xtr_raw, ytr)
+
+print(f"=== {CV_FOLDS}-fold fold-pure CV ({ENSEMBLE_LABEL}) ===")
+cv_table, oof_pred = cross_validate(lambda: make_stack(HAS_TABPFN),
+                                    Xtr_raw, ytr, CV_SPLITS)
+print("\n  per-fold mean +/- std:")
+for col in cv_table.columns:
+    print(f"    {col:<6}: {cv_table[col].mean():.4f} +/- {cv_table[col].std():.4f}")
+oof_metrics = metrics(ytr.to_numpy(), oof_pred)
+print(f"  pooled OOF R2 = {oof_metrics['R2']:.4f}")
+cv_table.round(4).to_csv(RES_DIR / "Table_S1_cv_per_fold_metrics.csv",
+                         index_label="fold")
+
+# %% [markdown]
+# ## 11. Baseline and single-model comparison (Fig. 4, Table S2)
+#
+# Every model is evaluated with the same folds, the same fold-pure
+# preprocessing, and the same Box–Cox target transform, so differences
+# reflect the learner only. The stacked-ensemble row reuses the CV results
+# from the previous section.
 
 # %%
 if RUN_MODEL_COMPARISON:
+    def comparison_factories():
+        f = {
+            "Ridge (linear)": lambda: make_pipeline(
+                StandardScaler(), Ridge(alpha=1.0)),
+            "k-NN (k=5)": lambda: make_pipeline(
+                StandardScaler(),
+                KNeighborsRegressor(n_neighbors=5, weights="distance")),
+            "Random Forest": lambda: RandomForestRegressor(
+                n_estimators=500, min_samples_leaf=2,
+                random_state=RANDOM_STATE, n_jobs=-1),
+            "LightGBM": lambda: make_lgbm(),
+            "CatBoost": lambda: make_catboost(),
+        }
+        if HAS_TABPFN:
+            f["TabPFN"] = lambda: make_tabpfn()
+        return f
+
     rows = []
-    for name, model in comparison_models(SEED).items():
-        table, _ = cross_validate(lambda m=model: m if isinstance(m, StackedEnsemble)
-                                  else sklearn.base.clone(m), X, y, verbose=False)
+    for name, factory in comparison_factories().items():
+        table, _ = cross_validate(factory, Xtr_raw, ytr, CV_SPLITS, verbose=False)
         rows.append({"model": name,
                      **{f"{c}_mean": table[c].mean() for c in table.columns},
                      **{f"{c}_std": table[c].std() for c in table.columns}})
         print(f"  {name:<18}: R2={rows[-1]['R2_mean']:.4f}+/-{rows[-1]['R2_std']:.4f}  "
               f"RMSE={rows[-1]['RMSE_mean']:.4f}+/-{rows[-1]['RMSE_std']:.4f}")
+    rows.append({"model": "Stacked ensemble",
+                 **{f"{c}_mean": cv_table[c].mean() for c in cv_table.columns},
+                 **{f"{c}_std": cv_table[c].std() for c in cv_table.columns}})
+    print(f"  {'Stacked ensemble':<18}: R2={rows[-1]['R2_mean']:.4f}"
+          f"+/-{rows[-1]['R2_std']:.4f}  "
+          f"RMSE={rows[-1]['RMSE_mean']:.4f}+/-{rows[-1]['RMSE_std']:.4f}")
     comp = pd.DataFrame(rows).set_index("model")
     comp.round(4).to_csv(RES_DIR / "Table_S2_model_comparison.csv")
 
     order = comp["R2_mean"].sort_values().index
-    fig, axes = plt.subplots(1, 2, figsize=(7.0, 2.6))
-    ypos = np.arange(len(order))
     colors = [C_ORANGE if m == "Stacked ensemble" else C_BLUE for m in order]
-    axes[0].barh(ypos, comp.loc[order, "R2_mean"], xerr=comp.loc[order, "R2_std"],
-                 color=colors, height=0.65, error_kw={"lw": 0.8})
+    ypos = np.arange(len(order))
+    fig, axes = plt.subplots(1, 2, figsize=(7.0, 2.6))
+    axes[0].barh(ypos, comp.loc[order, "R2_mean"],
+                 xerr=comp.loc[order, "R2_std"], color=colors, height=0.65,
+                 error_kw={"lw": 0.8})
     axes[0].set_yticks(ypos, order)
-    axes[0].set_xlabel(r"$R^2$ (10-fold CV)")
+    axes[0].set_xlabel(rf"$R^2$ ({CV_FOLDS}-fold CV)")
     axes[0].set_xlim(max(0.0, comp["R2_mean"].min() - 0.05), 1.0)
-    axes[1].barh(ypos, comp.loc[order, "RMSE_mean"], xerr=comp.loc[order, "RMSE_std"],
-                 color=colors, height=0.65, error_kw={"lw": 0.8})
+    axes[1].barh(ypos, comp.loc[order, "RMSE_mean"],
+                 xerr=comp.loc[order, "RMSE_std"], color=colors, height=0.65,
+                 error_kw={"lw": 0.8})
     axes[1].set_yticks(ypos, ["" for _ in order])
-    axes[1].set_xlabel(f"RMSE (10-fold CV), {UNIT}")
+    axes[1].set_xlabel(f"RMSE ({CV_FOLDS}-fold CV), {UNIT}")
     for ax, letter in zip(axes, "ab"):
-        ax.text(-0.05, 1.05, letter, transform=ax.transAxes, fontweight="bold", fontsize=10)
+        ax.text(-0.05, 1.05, letter, transform=ax.transAxes,
+                fontweight="bold", fontsize=10)
     fig.tight_layout()
     save_fig(fig, "Fig4_ModelComparison")
 
 # %% [markdown]
-# ## 9. Final fit and 80/20 holdout (Fig. 1, Fig. 6)
+# ## 12. Final fit and 80/20 holdout (Fig. 1, Table S4)
 
 # %%
-X_tr, X_te, y_tr, y_te = train_test_split(X, y, test_size=TEST_FRACTION, random_state=SEED)
-final_model = StackedEnsemble(SEED).fit(X_tr, y_tr)
-pred_tr, pred_te = final_model.predict(X_tr), final_model.predict(X_te)
-m_tr, m_te = metrics(y_tr, pred_tr), metrics(y_te, pred_te)
+final_state = fit_preprocessing(Xtr_raw)
+X_tr = build_matrix(Xtr_raw, final_state)
+X_te = build_matrix(Xte_raw, final_state)
+final_shift = fit_bc_shift(ytr.to_numpy())
 
-print(f"=== final fit / 80-20 holdout (random_state={SEED}) ===")
-print(f"  train: { {k: round(v, 4) for k, v in m_tr.items()} }")
-print(f"  test : { {k: round(v, 4) for k, v in m_te.items()} }")
-print(f"  meta (BayesianRidge) weights: {final_model.weights}")
+final_stack = make_stack(HAS_TABPFN)
+final_stack.fit(X_tr.to_numpy(), bc_forward(ytr.to_numpy(), final_shift))
+
+pred_tr = bc_inverse(final_stack.predict(X_tr.to_numpy()), final_shift)
+pred_te = bc_inverse(final_stack.predict(X_te.to_numpy()), final_shift)
+m_tr, m_te = metrics(ytr.to_numpy(), pred_tr), metrics(yte.to_numpy(), pred_te)
+
+print(f"=== final fit / 80-20 holdout (random_state={RANDOM_STATE}) ===")
+print("  train:", {k: round(v, 4) for k, v in m_tr.items()})
+print("  test :", {k: round(v, 4) for k, v in m_te.items()})
+meta_names = [n for n, _ in final_stack.estimators]
+meta_weights = {n: round(float(c), 4)
+                for n, c in zip(meta_names, final_stack.final_estimator_.coef_)}
+print("  meta (BayesianRidge) weights:", meta_weights)
+
 pd.DataFrame([{"split": "train", **m_tr}, {"split": "test", **m_te}]).round(4) \
     .to_csv(RES_DIR / "Table_S4_holdout_metrics.csv", index=False)
 
 # %%
-# Fig. 1 — parity plot
-fig, ax = plt.subplots(figsize=(3.4, 3.4))
-lims = [min(y.min(), pred_te.min()), max(y.max(), pred_te.max())]
-pad = 0.04 * (lims[1] - lims[0])
-lims = [lims[0] - pad, lims[1] + pad]
-ax.plot(lims, lims, color=C_GREY, lw=0.8, zorder=1)
-ax.scatter(y_tr, pred_tr, s=10, c=C_GREY, alpha=0.35, lw=0,
-           label=f"train (n={len(y_tr)})", zorder=2)
-ax.scatter(y_te, pred_te, s=14, c=C_BLUE, alpha=0.8, lw=0,
-           label=f"test (n={len(y_te)})", zorder=3)
-ax.set_xlim(lims), ax.set_ylim(lims)
-ax.set_xlabel(f"Measured {TARGET_LABEL}")
-ax.set_ylabel(f"Predicted {TARGET_LABEL}")
-ax.set_aspect("equal")
-ax.text(0.04, 0.96, f"test $R^2$ = {m_te['R2']:.3f}\nRMSE = {m_te['RMSE']:.3f}\n"
-        f"MAE = {m_te['MAE']:.3f}", transform=ax.transAxes, va="top")
-ax.legend(loc="lower right")
-fig.tight_layout()
+# Fig. 1 — parity plots (train / test)
+fig, axes = plt.subplots(1, 2, figsize=(7.2, 3.6))
+fig.subplots_adjust(wspace=0.38)
+for ax, yt, yp, m, lbl, col in [
+    (axes[0], ytr.to_numpy(), pred_tr, m_tr, "Training set", C_BLUE),
+    (axes[1], yte.to_numpy(), pred_te, m_te, "Test set",     C_RED),
+]:
+    lim = [0, max(yt.max(), yp.max()) * 1.07]
+    ax.plot(lim, lim, color="#333333", lw=1.0, ls="--", zorder=3, label="1:1 line")
+    ax.scatter(yt, yp, s=14, c=col, alpha=0.45, lw=0, zorder=4,
+               label=f"{lbl} (n={len(yt)})")
+    txt = (f"$R^2$ = {m['R2']:.4f}\nRMSE = {m['RMSE']:.4f} {UNIT}\n"
+           f"MAE = {m['MAE']:.4f} {UNIT}\nMedAPE = {m['MedAPE']:.1f} %")
+    ax.text(0.97, 0.05, txt, transform=ax.transAxes, fontsize=8,
+            va="bottom", ha="right",
+            bbox=dict(boxstyle="round,pad=0.3", facecolor="white",
+                      edgecolor="#CCCCCC", lw=0.5, alpha=0.9))
+    ax.set_xlim(lim), ax.set_ylim(lim)
+    ax.set_aspect("equal")
+    ax.set_xlabel(f"Measured {TARGET_LABEL}")
+    ax.set_ylabel(f"Predicted {TARGET_LABEL}")
+    ax.set_title(lbl, fontweight="bold", pad=4)
+    ax.legend(loc="upper left")
+for ax, letter in zip(axes, "ab"):
+    ax.text(-0.14, 1.05, letter, transform=ax.transAxes,
+            fontweight="bold", fontsize=10)
 save_fig(fig, "Fig1_ActualVsPredicted")
 
-# %%
-# Fig. 6 — residual diagnostics (test set)
-resid = y_te - pred_te
-fig, axes = plt.subplots(1, 3, figsize=(7.0, 2.4))
-axes[0].axhline(0, color=C_GREY, lw=0.8)
-axes[0].scatter(pred_te, resid, s=10, c=C_BLUE, alpha=0.7, lw=0)
-axes[0].set_xlabel(f"Predicted {TARGET_LABEL}")
-axes[0].set_ylabel(f"Residual {TARGET_LABEL}")
+# %% [markdown]
+# ## 13. Residual diagnostics on the test set (Fig. 6)
 
-axes[1].hist(resid, bins=30, color=C_BLUE, alpha=0.85, density=True)
+# %%
+resid = yte.to_numpy() - pred_te
+fig, axes = plt.subplots(1, 3, figsize=(7.2, 2.5))
+axes[0].axhline(0, color="#333333", lw=0.8, ls="--")
+axes[0].scatter(pred_te, resid, s=10, c=C_RED, alpha=0.5, lw=0)
+axes[0].set_xlabel(f"Predicted {TARGET_LABEL}")
+axes[0].set_ylabel(f"Residual ({UNIT})")
+
+axes[1].hist(resid, bins=30, color=C_RED, alpha=0.7, density=True,
+             edgecolor="white", lw=0.4)
 xs = np.linspace(resid.min(), resid.max(), 200)
-axes[1].plot(xs, st.norm.pdf(xs, resid.mean(), resid.std()), color=C_RED, lw=1)
-axes[1].set_xlabel(f"Residual {TARGET_LABEL}")
+axes[1].plot(xs, st.norm.pdf(xs, resid.mean(), resid.std()),
+             color="#333333", lw=1)
+axes[1].axvline(0, color="#333333", lw=0.8, ls="--")
+axes[1].set_xlabel(f"Residual ({UNIT})")
 axes[1].set_ylabel("Density")
 
 st.probplot(resid, dist="norm", plot=axes[2])
 axes[2].set_title("")
-axes[2].get_lines()[0].set(marker="o", markersize=2.5, color=C_BLUE, alpha=0.7)
-axes[2].get_lines()[1].set(color=C_RED, lw=1)
+axes[2].get_lines()[0].set(marker="o", markersize=2.5, color=C_RED, alpha=0.6)
+axes[2].get_lines()[1].set(color="#333333", lw=1)
 axes[2].set_xlabel("Theoretical quantiles")
 axes[2].set_ylabel("Ordered residuals")
 for ax, letter in zip(axes, "abc"):
-    ax.text(-0.18, 1.06, letter, transform=ax.transAxes, fontweight="bold", fontsize=10)
+    ax.text(-0.2, 1.06, letter, transform=ax.transAxes,
+            fontweight="bold", fontsize=10)
 fig.tight_layout()
 save_fig(fig, "Fig6_Residuals")
 
 # %% [markdown]
-# ## 10. Split-conformal prediction intervals (Fig. 9)
+# ## 14. Split-conformal prediction intervals (Fig. 9, Table S9)
+#
+# The symmetric half-width *q* is the finite-sample-corrected
+# (1 − α)-quantile of the absolute out-of-fold residuals from the fold-pure
+# CV (a leak-free calibration set that costs no extra training data).
+# Intervals `prediction ± q` then carry ≈ 90 % marginal coverage, which is
+# verified empirically on the holdout test set.
 
 # %%
 if RUN_CONFORMAL:
-    X_fit, X_cal, y_fit, y_cal = train_test_split(
-        X_tr, y_tr, test_size=CALIB_FRACTION, random_state=SEED)
-    conf_model = StackedEnsemble(SEED).fit(X_fit, y_fit)
-    cal_scores = np.abs(y_cal - conf_model.predict(X_cal))
-    n_cal = len(cal_scores)
-    q_level = min(1.0, np.ceil((n_cal + 1) * CONFORMAL_LEVEL) / n_cal)
-    q = float(np.quantile(cal_scores, q_level, method="higher"))
+    def conformal_halfwidth(abs_residuals, alpha=CONF_ALPHA):
+        r = np.sort(np.asarray(abs_residuals, float))
+        n = len(r)
+        k = int(np.ceil((n + 1) * (1 - alpha)))
+        return float(r[min(max(k, 1), n) - 1])
 
-    pred_conf = conf_model.predict(X_te)
-    covered = np.abs(y_te - pred_conf) <= q
-    coverage = covered.mean()
-    print(f"conformal: half-width q={q:.4f} {UNIT}, target {CONFORMAL_LEVEL:.0%} "
-          f"-> empirical coverage {coverage:.1%} on {len(y_te)} test points")
+    oof_resid_abs = np.abs(ytr.to_numpy() - oof_pred)
+    q = conformal_halfwidth(oof_resid_abs)
+    covered = np.abs(yte.to_numpy() - pred_te) <= q
+    coverage = float(covered.mean())
+    print(f"conformal: half-width q={q:.4f} {UNIT}, target "
+          f"{int((1 - CONF_ALPHA) * 100)}% -> empirical coverage "
+          f"{coverage * 100:.1f}% on {len(yte)} test points")
+    pd.DataFrame([{"alpha": CONF_ALPHA, "half_width_q": q,
+                   "target_coverage": 1 - CONF_ALPHA,
+                   "empirical_coverage": coverage,
+                   "n_test": len(yte)}]).round(4) \
+        .to_csv(RES_DIR / "Table_S9_conformal_summary.csv", index=False)
 
-    order = np.argsort(pred_conf)
-    idx = np.arange(len(y_te))
+    order = np.argsort(pred_te)
+    pos = np.arange(len(yte))
     cov_s = covered[order]
-    fig, ax = plt.subplots(figsize=(7.0, 2.6))
-    ax.fill_between(idx, pred_conf[order] - q, pred_conf[order] + q,
+    fig, ax = plt.subplots(figsize=(7.0, 2.8))
+    ax.fill_between(pos, pred_te[order] - q, pred_te[order] + q,
                     color=C_BLUE, alpha=0.18, lw=0,
-                    label=f"{CONFORMAL_LEVEL:.0%} conformal interval")
-    ax.plot(idx, pred_conf[order], color=C_BLUE, lw=0.9, label="prediction")
-    ax.scatter(idx[cov_s], y_te[order][cov_s], s=7, c=C_GREY, lw=0, zorder=3,
-               label="measured (covered)")
-    ax.scatter(idx[~cov_s], y_te[order][~cov_s], s=9, c=C_RED, lw=0, zorder=4,
-               label="measured (outside interval)")
+                    label=f"{int((1 - CONF_ALPHA) * 100)}% conformal interval "
+                          f"(±{q:.3f} {UNIT})")
+    ax.plot(pos, pred_te[order], color=C_BLUE, lw=0.9, label="prediction")
+    ax.scatter(pos[cov_s], yte.to_numpy()[order][cov_s], s=7, c=C_GREY, lw=0,
+               zorder=3, label="measured (covered)")
+    ax.scatter(pos[~cov_s], yte.to_numpy()[order][~cov_s], s=10, c=C_RED, lw=0,
+               zorder=4, label="measured (outside)")
     ax.set_xlabel("Test samples (sorted by predicted value)")
-    ax.set_ylabel(TARGET_LABEL)
-    ax.text(0.02, 0.96, f"empirical coverage = {coverage:.1%}",
+    ax.set_ylabel(TARGET_LABEL.capitalize())
+    ax.text(0.02, 0.96, f"empirical coverage = {coverage * 100:.1f} %",
             transform=ax.transAxes, va="top")
     ax.legend(loc="lower right", ncols=2)
     fig.tight_layout()
     save_fig(fig, "Fig9_ConformalIntervals")
 
 # %% [markdown]
-# ## 11. SHAP feature attribution (Fig. 2, Fig. 3)
+# ## 15. SHAP feature attribution (Figs. 2–3, Table S5)
 #
-# TreeSHAP values are computed exactly for the gradient-boosting components and
-# combined with their (renormalized) meta-learner weights; TabPFN has no exact
-# SHAP algorithm and is excluded from attribution, which is noted in captions.
+# Exact TreeSHAP values are computed for the gradient-boosting base learners
+# and combined with their renormalized meta-learner weights. TabPFN has no
+# exact SHAP algorithm and is excluded from attribution (noted in the figure
+# caption). Because the base learners operate on the Box–Cox-transformed
+# target, SHAP magnitudes are in transformed units; the feature ranking is
+# unaffected.
 
 # %%
 if RUN_SHAP:
-    tree_names = [n for n in final_model.names_ if n in ("lgbm", "catboost")]
-    w = np.array([final_model.weights[n] for n in tree_names], float)
-    w = np.abs(w) / np.abs(w).sum()
-    shap_vals = np.zeros((len(X_te), len(FEATURES)))
-    for name, wi in zip(tree_names, w):
-        explainer = shap.TreeExplainer(final_model.models_[name])
-        shap_vals += wi * explainer.shap_values(X_te)
+    import shap
 
-    X_te_df = pd.DataFrame(X_te, columns=FEATURES)
+    fitted = dict(zip(meta_names, final_stack.estimators_))
+    tree_names = [n for n in meta_names if n in ("lgbm", "catboost")]
+    w = np.array([abs(meta_weights[n]) for n in tree_names], float)
+    w = w / w.sum()
+    shap_vals = np.zeros((len(X_te), len(ALL_FEATURES)))
+    for name, wi in zip(tree_names, w):
+        shap_vals += wi * shap.TreeExplainer(fitted[name]).shap_values(
+            X_te.to_numpy())
+
+    X_te_disp = pd.DataFrame(X_te.to_numpy(), columns=DISPLAY_NAMES)
     plt.figure(figsize=(5.2, 4.6))
-    shap.summary_plot(shap_vals, X_te_df, show=False, max_display=15, plot_size=None)
+    shap.summary_plot(shap_vals, X_te_disp, show=False, max_display=15,
+                      plot_size=None, alpha=0.6)
     fig = plt.gcf()
     fig.tight_layout()
     save_fig(fig, "Fig2_SHAP_beeswarm")
 
-    mean_abs = pd.Series(np.abs(shap_vals).mean(axis=0), index=FEATURES) \
-        .sort_values(ascending=True)
+    mean_abs = pd.Series(np.abs(shap_vals).mean(axis=0), index=DISPLAY_NAMES)
     mean_abs.sort_values(ascending=False).round(5) \
-        .to_csv(RES_DIR / "Table_S5_shap_importance.csv", header=["mean_abs_shap"])
-    top = mean_abs.tail(15)
+        .to_csv(RES_DIR / "Table_S5_shap_importance.csv",
+                header=["mean_abs_shap"])
+    top = mean_abs.sort_values().tail(15)
     fig, ax = plt.subplots(figsize=(3.6, 3.8))
     ax.barh(np.arange(len(top)), top.values, color=C_BLUE, height=0.65)
     ax.set_yticks(np.arange(len(top)), top.index)
-    ax.set_xlabel(f"mean |SHAP value| ({UNIT})")
+    ax.set_xlabel("mean |SHAP value| (Box–Cox units)")
     fig.tight_layout()
     save_fig(fig, "Fig3_SHAP_bar")
 
 # %% [markdown]
-# ## 12. Feature correlation structure (Fig. 7)
+# ## 16. Feature–target correlation structure (Fig. 7, Table S6)
 
 # %%
-corr_df = X_df.copy()
-corr_df[TARGET_LABEL] = y
+corr_df = X_tr.copy()
+corr_df.columns = DISPLAY_NAMES
+corr_df[TARGET_LABEL] = ytr.to_numpy()
 corr = corr_df.corr(method="pearson")
 fig, ax = plt.subplots(figsize=(6.4, 5.6))
 im = ax.imshow(corr.values, cmap="RdBu_r", vmin=-1, vmax=1)
@@ -574,19 +872,33 @@ save_fig(fig, "Fig7_CorrelationHeatmap")
 corr.round(3).to_csv(RES_DIR / "Table_S6_correlation_matrix.csv")
 
 # %% [markdown]
-# ## 13. Learning curve (Fig. 5)
+# ## 17. Learning curve (Fig. 5, Table S7)
+#
+# The stack is retrained on random subsets of the training split (fold-pure
+# preprocessing refit per subset) and evaluated on the fixed holdout test
+# set, showing how performance scales with the amount of training data.
 
 # %%
 if RUN_LEARNING_CURVE:
     lc_rows = []
-    rng = np.random.default_rng(SEED)
+    rng = np.random.default_rng(RANDOM_STATE)
     for frac in LEARNING_CURVE_SIZES:
-        n = int(round(frac * len(X_tr)))
-        sub = rng.choice(len(X_tr), size=n, replace=False)
-        model = StackedEnsemble(SEED).fit(X_tr[sub], y_tr[sub])
-        m = metrics(y_te, model.predict(X_te))
+        n = int(round(frac * len(ytr)))
+        sub = np.sort(rng.choice(len(ytr), size=n, replace=False))
+        sub_raw, sub_y = Xtr_raw.iloc[sub], ytr.iloc[sub].to_numpy()
+
+        state = fit_preprocessing(sub_raw)
+        shift = fit_bc_shift(sub_y)
+        model = make_stack(HAS_TABPFN)
+        model.fit(build_matrix(sub_raw, state).to_numpy(),
+                  bc_forward(sub_y, shift))
+        pred = bc_inverse(model.predict(build_matrix(Xte_raw, state).to_numpy()),
+                          shift)
+        m = metrics(yte.to_numpy(), pred)
         lc_rows.append({"n_train": n, **m})
-        print(f"  n_train={n:4d}:  R2={m['R2']:.4f}  RMSE={m['RMSE']:.4f}")
+        print(f"  n_train={n:5d}:  R2={m['R2']:.4f}  RMSE={m['RMSE']:.4f}")
+        del model, state
+        cleanup()
     lc = pd.DataFrame(lc_rows)
     lc.round(4).to_csv(RES_DIR / "Table_S7_learning_curve.csv", index=False)
 
@@ -604,34 +916,39 @@ if RUN_LEARNING_CURVE:
     save_fig(fig, "Fig5_LearningCurve")
 
 # %% [markdown]
-# ## 14. y-randomization test (Fig. 8)
+# ## 18. y-randomization test (Fig. 8, Table S8)
 #
-# The target vector is randomly permuted and the full pipeline retrained; if
-# performance on permuted targets collapses to chance ($R^2 \le 0$), the real
-# model's performance cannot be explained by leakage or overfitting.
+# The training targets are randomly permuted and the full pipeline retrained.
+# If performance on permuted targets collapses to chance (R² ≤ 0), the real
+# model's performance cannot be an artifact of leakage or overfitting.
 
 # %%
 if RUN_Y_RANDOMIZATION:
-    rng = np.random.default_rng(SEED)
+    rng = np.random.default_rng(RANDOM_STATE)
     perm_r2 = []
     for i in range(N_PERMUTATIONS):
-        y_perm = rng.permutation(y_tr)
-        model = StackedEnsemble(SEED).fit(X_tr, y_perm)
-        r2 = metrics(y_te, model.predict(X_te))["R2"]
+        y_perm = rng.permutation(ytr.to_numpy())
+        shift = fit_bc_shift(y_perm)
+        model = make_stack(HAS_TABPFN)
+        model.fit(X_tr.to_numpy(), bc_forward(y_perm, shift))
+        r2 = metrics(yte.to_numpy(),
+                     bc_inverse(model.predict(X_te.to_numpy()), shift))["R2"]
         perm_r2.append(r2)
         print(f"  permutation {i + 1:2d}: R2={r2:.4f}")
+        del model
+        cleanup()
     perm_r2 = np.array(perm_r2)
     print(f"  permuted R2 = {perm_r2.mean():.4f} +/- {perm_r2.std():.4f}  "
           f"(true model R2 = {m_te['R2']:.4f})")
-    pd.DataFrame({"permutation": np.arange(1, len(perm_r2) + 1), "R2": perm_r2}) \
-        .round(4).to_csv(RES_DIR / "Table_S8_y_randomization.csv", index=False)
+    pd.DataFrame({"permutation": np.arange(1, len(perm_r2) + 1),
+                  "R2": perm_r2}).round(4) \
+        .to_csv(RES_DIR / "Table_S8_y_randomization.csv", index=False)
 
     fig, ax = plt.subplots(figsize=(3.6, 2.8))
-    bins = np.linspace(perm_r2.min() - 0.02, perm_r2.max() + 0.02,
-                       max(5, len(perm_r2) // 2))
-    ax.hist(perm_r2, bins=bins, color=C_GREY, alpha=0.85,
+    ax.hist(perm_r2, bins=max(5, len(perm_r2) // 2), color=C_GREY, alpha=0.85,
             label=f"permuted targets (n={len(perm_r2)})")
-    ax.axvline(m_te["R2"], color=C_RED, lw=1.4, label="true model")
+    ax.axvline(m_te["R2"], color=C_RED, lw=1.4,
+               label=f"true model ($R^2$={m_te['R2']:.3f})")
     ax.set_xlabel(r"Holdout $R^2$")
     ax.set_ylabel("Count")
     ax.legend(loc="upper center")
@@ -639,17 +956,32 @@ if RUN_Y_RANDOMIZATION:
     save_fig(fig, "Fig8_yRandomization")
 
 # %% [markdown]
-# ## 15. Multi-seed holdout stability (Fig. 10)
+# ## 19. Multi-seed holdout stability (Fig. 10, Table S3)
+#
+# The 80/20 split and all model seeds are varied jointly across five seeds;
+# the spread of the resulting test metrics measures the sensitivity of the
+# reported performance to the choice of split.
 
 # %%
 if RUN_SEED_STABILITY:
-    print(f"=== seed-averaged holdout over {len(STABILITY_SEEDS)} seeds ({ensemble_label}) ===")
+    print(f"=== seed-averaged holdout over {len(STABILITY_SEEDS)} seeds "
+          f"({ENSEMBLE_LABEL}) ===")
     seed_rows = []
     for s in STABILITY_SEEDS:
-        Xa, Xb, ya, yb = train_test_split(X, y, test_size=TEST_FRACTION, random_state=s)
-        model = StackedEnsemble(s).fit(Xa, ya)
-        m = metrics(yb, model.predict(Xb))
-        seed_rows.append({"seed": s, **m})
+        tr, te = train_test_split(np.arange(len(y)), test_size=TEST_SIZE,
+                                  random_state=s)
+        Xa, Xb = X_raw.iloc[tr], X_raw.iloc[te]
+        ya, yb = y.iloc[tr].to_numpy(), y.iloc[te].to_numpy()
+
+        state = fit_preprocessing(Xa)
+        shift = fit_bc_shift(ya)
+        model = make_stack(HAS_TABPFN, random_state=s)
+        model.fit(build_matrix(Xa, state).to_numpy(), bc_forward(ya, shift))
+        pred = bc_inverse(model.predict(build_matrix(Xb, state).to_numpy()),
+                          shift)
+        seed_rows.append({"seed": s, **metrics(yb, pred)})
+        del model, state
+        cleanup()
     seed_df = pd.DataFrame(seed_rows).set_index("seed")
     print(f"  R2={seed_df['R2'].mean():.4f}+/-{seed_df['R2'].std():.4f}  "
           f"RMSE={seed_df['RMSE'].mean():.4f}+/-{seed_df['RMSE'].std():.4f}  "
@@ -659,10 +991,10 @@ if RUN_SEED_STABILITY:
     seed_df.round(4).to_csv(RES_DIR / "Table_S3_seed_stability.csv")
 
     fig, axes = plt.subplots(1, 2, figsize=(7.0, 2.6))
-    if RUN_CV:
-        axes[0].boxplot([cv_table["R2"], cv_table["RMSE"] * 10], tick_labels=[r"$R^2$", r"RMSE $\times$ 10"],
-                        widths=0.5, medianprops={"color": C_RED})
-        axes[0].set_ylabel("10-fold CV metric")
+    axes[0].boxplot([cv_table["R2"], cv_table["RMSE"] * 10],
+                    tick_labels=[r"$R^2$", r"RMSE $\times$ 10"],
+                    widths=0.5, medianprops={"color": C_RED})
+    axes[0].set_ylabel(f"{CV_FOLDS}-fold CV metric")
     xpos = np.arange(len(seed_df))
     axes[1].scatter(xpos, seed_df["R2"], s=28, c=C_BLUE, zorder=3)
     axes[1].axhline(seed_df["R2"].mean(), color=C_RED, lw=1, ls="--",
@@ -674,12 +1006,13 @@ if RUN_SEED_STABILITY:
     axes[1].margins(y=0.25)
     axes[1].legend(loc="best")
     for ax, letter in zip(axes, "ab"):
-        ax.text(-0.12, 1.05, letter, transform=ax.transAxes, fontweight="bold", fontsize=10)
+        ax.text(-0.12, 1.05, letter, transform=ax.transAxes,
+                fontweight="bold", fontsize=10)
     fig.tight_layout()
     save_fig(fig, "Fig10_Stability")
 
 # %% [markdown]
-# ## 16. Archive outputs
+# ## 20. Archive outputs
 
 # %%
 archive = Path("ASR_publication_outputs.zip")
@@ -692,10 +1025,8 @@ for folder in (FIG_DIR, RES_DIR):
     for f in sorted(folder.iterdir()):
         print(f"  {f}")
 
-# In Colab, offer the archive for download
 try:
-    from google.colab import files  # noqa: PLC0415
-
+    from google.colab import files
     files.download(str(archive))
 except ImportError:
     pass
