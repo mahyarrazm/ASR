@@ -13,7 +13,7 @@ and meta levels).
 
 | Component | Setting |
 |---|---|
-| Features | 17 base + 5 engineered = 22 (ablation-selected) |
+| Features | 16 base + 5 engineered = 21 (ablation-selected; the categorical curing-condition column is excluded) |
 | Imputation | conditional median by SCM presence + FA-class mode, refit per fold |
 | Target transform | Box–Cox (λ = 0.85), shift refit per fold |
 | Cross-validation | 10-fold, stratified by target-quantile bins, fold-pure |
@@ -46,13 +46,14 @@ and meta levels).
 
 ## Data format
 
-A single CSV with one row per specimen: the 27 base feature columns
-(`x1` … `x29`, including `X21`) plus the numeric target column `y`
-(expansion, %). Rows with a non-numeric target (e.g. a units/description
-header row) are detected and dropped automatically; if such a row is
-present, the variable descriptions in it are used as feature names in all
-figures (override via `FEATURE_LABELS` in the Configuration cell). Missing
-feature values are preserved and imputed fold-pure inside each split.
+A single CSV with one row per specimen: the numeric base feature columns
+(`x1` … `x29`, including `X21`; the categorical curing-condition column
+`x28` is ignored) plus the numeric target column `y` (expansion, %). Rows
+with a non-numeric target (e.g. a units/description header row) are
+detected and dropped automatically; if such a row is present, the variable
+descriptions in it are used as feature names in all figures (override via
+`FEATURE_LABELS` in the Configuration cell). Missing feature values are
+preserved and imputed fold-pure inside each split.
 
 ## Analysis suite and outputs
 

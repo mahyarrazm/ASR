@@ -22,7 +22,7 @@
 #
 # | Component | Setting |
 # |---|---|
-# | Features | 17 base + 5 engineered = 22 (ablation-selected) |
+# | Features | 16 base + 5 engineered = 21 (ablation-selected) |
 # | Imputation | conditional median by SCM presence + FA-class mode, refit per fold |
 # | Target transform | Box–Cox (λ = 0.85), shift refit per fold |
 # | Ensemble | LightGBM + CatBoost + TabPFN, BayesianRidge meta-learner |
@@ -226,17 +226,19 @@ def panel_label(ax, letter, dx=-0.14, dy=1.04):
 # %% [markdown]
 # ## 4. Features
 #
-# 27 base columns are loaded from the CSV. Ten of them were removed from the
-# model input by the ablation study (FA composition/class and CNS composition
-# descriptors), but remain loaded because `X21`/`x27` feed the engineered
-# `SCM_alkali` feature and `x15` is needed for imputation. Five engineered
-# features are added, giving 22 active model features.
+# 26 numeric base columns are loaded from the CSV (the categorical
+# curing-condition column `x28` is excluded). Ten of them were removed from
+# the model input by the ablation study (FA composition/class and CNS
+# composition descriptors), but remain loaded because `X21`/`x27` feed the
+# engineered `SCM_alkali` feature and `x15` is needed for imputation. Five
+# engineered features are added, giving 21 active model features.
 
 # %%
+# x28 (curing condition) is categorical/non-numeric and is not loaded.
 BASE_FEATURES_LOADED = [
     "x1", "x2", "x3", "x4", "x5", "x7", "x9", "x10",
     "x11", "x12", "x13", "x14", "x15", "x16", "x17", "x18", "x19", "x20",
-    "X21", "x22", "x23", "x24", "x25", "x26", "x27", "x28", "x29",
+    "X21", "x22", "x23", "x24", "x25", "x26", "x27", "x29",
 ]
 
 DROPPED_FROM_BASELINE = [
@@ -255,7 +257,7 @@ ENGINEERED_LABELS = {
 }
 
 _ALL_BASELINE = BASE_FEATURES_LOADED + ENGINEERED
-ALL_FEATURES  = [f for f in _ALL_BASELINE if f not in DROPPED_FROM_BASELINE]  # 22
+ALL_FEATURES  = [f for f in _ALL_BASELINE if f not in DROPPED_FROM_BASELINE]  # 21
 
 # imputation groups: SCM composition columns conditioned on their content column
 mk_prop_cols  = ["x11", "x12", "x14"]                # gated by x13 (MK content %)
