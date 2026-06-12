@@ -478,14 +478,13 @@ print(f"ensemble: {ENSEMBLE_LABEL}"
 def metrics(y_true, y_pred):
     y_true = np.asarray(y_true, float)
     y_pred = np.asarray(y_pred, float)
-    nz = np.abs(y_true) > 1e-8  # MAPE is undefined at zero expansion
+    nz = np.abs(y_true) > 1e-8  # percentage errors are undefined at zero expansion
     ape = (np.abs((y_true[nz] - y_pred[nz]) / y_true[nz]) * 100
            if nz.any() else np.array([np.nan]))
     return {
         "R2":     float(r2_score(y_true, y_pred)),
         "RMSE":   float(np.sqrt(mean_squared_error(y_true, y_pred))),
         "MAE":    float(mean_absolute_error(y_true, y_pred)),
-        "MAPE":   float(np.mean(ape)),     # inflated near zero expansion
         "MedAPE": float(np.median(ape)),   # robust to small denominators
     }
 
