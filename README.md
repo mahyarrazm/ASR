@@ -49,8 +49,10 @@ and meta levels).
 A single CSV with one row per specimen: the 27 base feature columns
 (`x1` … `x29`, including `X21`) plus the numeric target column `y`
 (expansion, %). Rows with a non-numeric target (e.g. a units/description
-header row) are detected and dropped automatically; missing feature values
-are preserved and imputed fold-pure inside each split.
+header row) are detected and dropped automatically; if such a row is
+present, the variable descriptions in it are used as feature names in all
+figures (override via `FEATURE_LABELS` in the Configuration cell). Missing
+feature values are preserved and imputed fold-pure inside each split.
 
 ## Analysis suite and outputs
 
@@ -60,7 +62,7 @@ are preserved and imputed fold-pure inside each split.
 | 10-fold fold-pure cross-validation | Fig. 10a | Table S1 |
 | Baseline / single-model comparison (Ridge, k-NN, Random Forest, LightGBM, CatBoost, TabPFN, stack) under identical folds and preprocessing, with paired Wilcoxon significance vs the stack | Fig. 4 | Tables S2, S2b |
 | 80/20 holdout evaluation | Fig. 1 (parity), Fig. 6 (residual diagnostics incl. Q–Q) | Table S4 |
-| Split-conformal 90 % prediction intervals, calibrated on leak-free out-of-fold CV residuals | Fig. 9 | Table S9 |
+| Split-conformal 95 % prediction intervals, calibrated on leak-free out-of-fold CV residuals | Fig. 9 | Table S9 |
 | SHAP feature attribution (TreeSHAP on the GBDT components, meta-weighted) | Fig. 2 (beeswarm), Fig. 3 (bar) | Table S5 |
 | Feature–target Pearson correlation structure | Fig. 7 | Table S6 |
 | Learning curve (data efficiency) | Fig. 5 | Table S7 |

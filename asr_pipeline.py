@@ -37,7 +37,7 @@
 # | 10-fold fold-pure cross-validation | Fig. 10a | Table S1 |
 # | Baseline / single-model comparison | Fig. 4 | Table S2 |
 # | 80/20 holdout (parity, residual diagnostics) | Figs. 1, 6 | Table S4 |
-# | Split-conformal 90 % prediction intervals | Fig. 9 | Table S9 |
+# | Split-conformal 95 % prediction intervals | Fig. 9 | Table S9 |
 # | SHAP feature attribution | Figs. 2, 3 | Table S5 |
 # | Feature–target correlation structure | Fig. 7 | Table S6 |
 # | Learning curve (data efficiency) | Fig. 5 | Table S7 |
@@ -132,7 +132,7 @@ EPS_SHIFT    = 1e-4              # shift so the transformed target is > 0
 USE_TABPFN    = True             # False reproduces the 2-learner stack
 TABPFN_DEVICE = "auto"           # "cpu", "cuda", or "auto"
 
-CONF_ALPHA = 0.10                # 1 - target coverage (0.10 -> 90 % intervals)
+CONF_ALPHA = 0.05                # 1 - target coverage (0.05 -> 95 % intervals)
 STABILITY_SEEDS = [256, 7, 42, 101, 2024]
 N_PERMUTATIONS = 10              # y-randomization repeats
 LEARNING_CURVE_SIZES = [0.2, 0.4, 0.6, 0.8, 1.0]
@@ -144,8 +144,9 @@ RUN_LEARNING_CURVE   = True
 RUN_Y_RANDOMIZATION  = True
 RUN_SEED_STABILITY   = True
 
-# Map feature codes to descriptive names for figure labels (codes are kept
-# where no entry is given); edit to match the manuscript's variable names.
+# Feature names for figure labels are read automatically from the dataset's
+# description header row (if present). Entries placed here override the
+# automatic names, e.g. {"x1": "Silica content of sand (%)"}.
 FEATURE_LABELS = {}
 
 FAST_MODE = os.environ.get("ASR_FAST_MODE", "0") == "1"  # reduced smoke test
@@ -223,9 +224,16 @@ DROPPED_FROM_BASELINE = [
 
 ENGINEERED = ["total_SCM", "age_x_temp", "silica_x_alkali", "log_age", "SCM_alkali"]
 
+ENGINEERED_LABELS = {
+    "total_SCM":       "Total SCM content",
+    "age_x_temp":      "Age × temperature",
+    "silica_x_alkali": "Silica × alkali",
+    "log_age":         "log(1 + age)",
+    "SCM_alkali":      "Combined SCM alkali",
+}
+
 _ALL_BASELINE = BASE_FEATURES_LOADED + ENGINEERED
 ALL_FEATURES  = [f for f in _ALL_BASELINE if f not in DROPPED_FROM_BASELINE]  # 22
-DISPLAY_NAMES = [FEATURE_LABELS.get(f, f) for f in ALL_FEATURES]
 
 # imputation groups: SCM composition columns conditioned on their content column
 mk_prop_cols  = ["x11", "x12", "x14"]                # gated by x13 (MK content %)
@@ -470,10 +478,22 @@ def load_data(path=CSV_PATH):
     if missing:
         raise ValueError(f"Columns missing from {path}: {missing}")
 
-    # Some exports carry a second header row of descriptions and/or rows with
-    # no target. Coerce to numeric and drop rows whose target is missing;
-    # genuine missing feature values are preserved (NaN) for the fold-pure
-    # imputer.
+    # Some exports carry a second header row with the description of each
+    # variable, and/or rows with no target. Rows whose target is non-numeric
+    # are dropped, but the description row is first harvested to label the
+    # features in figures. Genuine missing feature values are preserved (NaN)
+    # for the fold-pure imputer.
+    y_num = pd.to_numeric(df[TARGET], errors="coerce")
+    desc_rows = df.loc[y_num.isna()]
+    auto_labels = {}
+    for c in BASE_FEATURES_LOADED:
+        for v in desc_rows[c]:
+            if (isinstance(v, str) and v.strip()
+                    and pd.isna(pd.to_numeric(pd.Series([v.strip()]),
+                                              errors="coerce").iloc[0])):
+                auto_labels[c] = " ".join(v.split())
+                break
+
     for c in need:
         df[c] = pd.to_numeric(df[c], errors="coerce")
 
@@ -487,10 +507,35 @@ def load_data(path=CSV_PATH):
     y = df[TARGET].astype(float).reset_index(drop=True)
     print(f"Loaded {path}: raw X={X_raw.shape}, y={y.shape}  "
           f"(active model features = {len(ALL_FEATURES)})")
-    return X_raw, y
+    if auto_labels:
+        print(f"feature names read from the description row "
+              f"({len(auto_labels)} of {len(BASE_FEATURES_LOADED)} columns).")
+    return X_raw, y, auto_labels
 
 
-X_raw, y = load_data()
+X_raw, y, AUTO_LABELS = load_data()
+
+# %%
+# Resolve display names: description row < engineered defaults < manual
+# overrides; duplicate names are disambiguated with the feature code.
+LABEL_MAP = {**AUTO_LABELS, **ENGINEERED_LABELS, **FEATURE_LABELS}
+
+
+def _shorten(s, n=38):
+    s = " ".join(str(s).split())
+    return s if len(s) <= n else s[: n - 1] + "…"
+
+
+_counts = pd.Series([_shorten(LABEL_MAP.get(f, f))
+                     for f in ALL_FEATURES]).value_counts()
+DISPLAY_NAMES = []
+for f in ALL_FEATURES:
+    lbl = _shorten(LABEL_MAP.get(f, f))
+    DISPLAY_NAMES.append(f"{lbl} ({f})" if _counts[lbl] > 1 else lbl)
+
+label_table = pd.DataFrame({"feature": ALL_FEATURES, "label": DISPLAY_NAMES})
+label_table.to_csv(RES_DIR / "feature_label_mapping.csv", index=False)
+label_table
 
 # %%
 # Table S0 — descriptive statistics of the loaded variables
@@ -514,7 +559,9 @@ miss = (X_raw.isna().mean() * 100).sort_values(ascending=False)
 miss = miss[miss > 0]
 if len(miss):
     axes[1].bar(range(len(miss)), miss.values, color=C_ORANGE, alpha=0.9)
-    axes[1].set_xticks(range(len(miss)), miss.index, rotation=90, fontsize=6)
+    axes[1].set_xticks(range(len(miss)),
+                       [_shorten(LABEL_MAP.get(c, c), 26) for c in miss.index],
+                       rotation=90, fontsize=6)
     axes[1].set_ylabel("Missing values (%)")
 else:
     axes[1].text(0.5, 0.5, "no missing values", ha="center", va="center",
@@ -789,8 +836,8 @@ save_fig(fig, "Fig6_Residuals")
 # The symmetric half-width *q* is the finite-sample-corrected
 # (1 − α)-quantile of the absolute out-of-fold residuals from the fold-pure
 # CV (a leak-free calibration set that costs no extra training data).
-# Intervals `prediction ± q` then carry ≈ 90 % marginal coverage, which is
-# verified empirically on the holdout test set.
+# Intervals `prediction ± q` then carry ≈ (1 − α) marginal coverage (95 % by
+# default), which is verified empirically on the holdout test set.
 
 # %%
 if RUN_CONFORMAL:
@@ -885,7 +932,7 @@ corr_df = X_tr.copy()
 corr_df.columns = DISPLAY_NAMES
 corr_df[TARGET_LABEL] = ytr.to_numpy()
 corr = corr_df.corr(method="pearson")
-fig, ax = plt.subplots(figsize=(6.4, 5.6))
+fig, ax = plt.subplots(figsize=(7.4, 6.4))
 im = ax.imshow(corr.values, cmap="RdBu_r", vmin=-1, vmax=1)
 ax.set_xticks(range(len(corr)), corr.columns, rotation=90, fontsize=6)
 ax.set_yticks(range(len(corr)), corr.columns, fontsize=6)
