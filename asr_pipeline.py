@@ -35,10 +35,12 @@
 # |---|---|---|
 # | Dataset overview | Fig. S1 | Table S0 |
 # | 10-fold fold-pure cross-validation | Fig. 10a | Table S1 |
-# | Baseline / single-model comparison | Fig. 4 | Table S2 |
+# | Baseline / single-model comparison + paired Wilcoxon | Fig. 4 | Tables S2, S2b |
 # | 80/20 holdout (parity, residual diagnostics) | Figs. 1, 6 | Table S4 |
-# | Split-conformal 95 % prediction intervals | Fig. 9 | Table S9 |
-# | SHAP feature attribution | Figs. 2, 3 | Table S5 |
+# | Applicability domain (Williams plot) | Fig. 11 | Table S11 |
+# | Cross-conformal 95 % prediction intervals + conditional coverage | Fig. 9 | Table S9 |
+# | Expansion-limit class agreement (0.10 / 0.20 %) | Fig. S3 | Table S10 |
+# | SHAP feature attribution + dependence | Figs. 2, 3, S2 | Table S5 |
 # | Feature–target correlation structure | Fig. 7 | Table S6 |
 # | Learning curve (data efficiency) | Fig. 5 | Table S7 |
 # | y-randomization (chance-performance test) | Fig. 8 | Table S8 |
@@ -99,7 +101,8 @@ from catboost import CatBoostRegressor
 from lightgbm import LGBMRegressor
 from sklearn.ensemble import RandomForestRegressor, StackingRegressor
 from sklearn.linear_model import BayesianRidge, Ridge
-from sklearn.metrics import mean_absolute_error, mean_squared_error, r2_score
+from sklearn.metrics import (cohen_kappa_score, confusion_matrix,
+                             mean_absolute_error, mean_squared_error, r2_score)
 from sklearn.model_selection import KFold, StratifiedKFold, train_test_split
 from sklearn.neighbors import KNeighborsRegressor
 from sklearn.pipeline import make_pipeline
@@ -133,12 +136,15 @@ USE_TABPFN    = True             # False reproduces the 2-learner stack
 TABPFN_DEVICE = "auto"           # "cpu", "cuda", or "auto"
 
 CONF_ALPHA = 0.05                # 1 - target coverage (0.05 -> 95 % intervals)
+EXPANSION_LIMITS = [0.10, 0.20]  # decision limits (%) for class-agreement analysis
 STABILITY_SEEDS = [256, 7, 42, 101, 2024]
 N_PERMUTATIONS = 10              # y-randomization repeats
 LEARNING_CURVE_SIZES = [0.2, 0.4, 0.6, 0.8, 1.0]
 
 RUN_MODEL_COMPARISON = True
 RUN_CONFORMAL        = True
+RUN_WILLIAMS         = True
+RUN_THRESHOLD        = True
 RUN_SHAP             = True
 RUN_LEARNING_CURVE   = True
 RUN_Y_RANDOMIZATION  = True
@@ -165,20 +171,30 @@ np.random.seed(RANDOM_STATE)
 
 # %% [markdown]
 # ## 3. Figure style (journal defaults)
+#
+# Figures are sized at final print width (Nature double column = 180 mm,
+# single column = 89 mm) with 5–7.5 pt internal lettering and 8 pt bold
+# panel letters, Arial/Helvetica throughout, an Okabe–Ito colorblind-safe
+# palette, and TrueType-embedded vector PDFs alongside 600-dpi PNGs.
 
 # %%
+FULL_W   = 7.08  # in  (180 mm, double column)
+SINGLE_W = 3.50  # in  ( 89 mm, single column)
+
 mpl.rcParams.update({
     "font.family": "sans-serif",
     "font.sans-serif": ["Arial", "Helvetica", "DejaVu Sans"],
-    "font.size": 8,
-    "axes.labelsize": 9,
-    "axes.titlesize": 9,
-    "axes.linewidth": 0.8,
+    "font.size": 7,
+    "axes.labelsize": 7.5,
+    "axes.titlesize": 7.5,
+    "axes.linewidth": 0.6,
     "axes.spines.top": False,
     "axes.spines.right": False,
-    "xtick.labelsize": 8,
-    "ytick.labelsize": 8,
-    "legend.fontsize": 7.5,
+    "xtick.labelsize": 6.5,
+    "ytick.labelsize": 6.5,
+    "xtick.major.width": 0.6,
+    "ytick.major.width": 0.6,
+    "legend.fontsize": 6.5,
     "legend.frameon": False,
     "figure.dpi": 110,
     "savefig.dpi": 600,
@@ -200,6 +216,12 @@ def save_fig(fig, name):
     print(f"saved {FIG_DIR}/{name}.png/.pdf")
     plt.show()
     plt.close(fig)
+
+
+def panel_label(ax, letter, dx=-0.14, dy=1.04):
+    """8 pt bold lowercase panel letter, journal style."""
+    ax.text(dx, dy, letter, transform=ax.transAxes, fontsize=8,
+            fontweight="bold", va="bottom", ha="right")
 
 # %% [markdown]
 # ## 4. Features
@@ -551,7 +573,7 @@ table_s0
 
 # %%
 # Fig. S1 — target distribution and feature missingness
-fig, axes = plt.subplots(1, 2, figsize=(7.0, 2.6))
+fig, axes = plt.subplots(1, 2, figsize=(FULL_W, 2.5))
 axes[0].hist(y, bins=40, color=C_BLUE, alpha=0.85)
 axes[0].set_xlabel(f"Measured {TARGET_LABEL}")
 axes[0].set_ylabel("Count")
@@ -568,8 +590,7 @@ else:
                  transform=axes[1].transAxes)
     axes[1].set_axis_off()
 for ax, letter in zip(axes, "ab"):
-    ax.text(-0.14, 1.05, letter, transform=ax.transAxes,
-            fontweight="bold", fontsize=10)
+    panel_label(ax, letter)
 fig.tight_layout()
 save_fig(fig, "FigS1_DataOverview")
 
@@ -660,8 +681,11 @@ cv_table.round(4).to_csv(RES_DIR / "Table_S1_cv_per_fold_metrics.csv",
 # preprocessing, and the same Box–Cox target transform, so differences
 # reflect the learner only. The stacked-ensemble row reuses the CV results
 # from the previous section. Because all models share identical folds, a
-# paired Wilcoxon signed-rank test on the per-fold R² quantifies whether the
-# stack's advantage over each competitor is statistically significant.
+# two-sided paired Wilcoxon signed-rank test on the per-fold R² quantifies
+# whether the stack's advantage over each competitor is statistically
+# significant. (CV folds share training data, so fold-level test statistics
+# are approximate — Nadeau & Bengio, 2003; the test is reported as a
+# descriptive complement to the effect sizes, not as the sole evidence.)
 
 # %%
 if RUN_MODEL_COMPARISON:
@@ -724,7 +748,7 @@ if RUN_MODEL_COMPARISON:
     order = comp["R2_mean"].sort_values().index
     colors = [C_ORANGE if m == "Stacked ensemble" else C_BLUE for m in order]
     ypos = np.arange(len(order))
-    fig, axes = plt.subplots(1, 2, figsize=(7.0, 2.6))
+    fig, axes = plt.subplots(1, 2, figsize=(FULL_W, 2.8))
     axes[0].barh(ypos, comp.loc[order, "R2_mean"],
                  xerr=comp.loc[order, "R2_std"], color=colors, height=0.65,
                  error_kw={"lw": 0.8})
@@ -736,9 +760,8 @@ if RUN_MODEL_COMPARISON:
                  error_kw={"lw": 0.8})
     axes[1].set_yticks(ypos, ["" for _ in order])
     axes[1].set_xlabel(f"RMSE ({CV_FOLDS}-fold CV), {UNIT}")
-    for ax, letter in zip(axes, "ab"):
-        ax.text(-0.05, 1.05, letter, transform=ax.transAxes,
-                fontweight="bold", fontsize=10)
+    panel_label(axes[0], "a", dx=-0.38)
+    panel_label(axes[1], "b", dx=-0.05)
     fig.tight_layout()
     save_fig(fig, "Fig4_ModelComparison")
 
@@ -771,19 +794,19 @@ pd.DataFrame([{"split": "train", **m_tr}, {"split": "test", **m_te}]).round(4) \
 
 # %%
 # Fig. 1 — parity plots (train / test)
-fig, axes = plt.subplots(1, 2, figsize=(7.2, 3.6))
-fig.subplots_adjust(wspace=0.38)
+fig, axes = plt.subplots(1, 2, figsize=(FULL_W, 3.4))
+fig.subplots_adjust(wspace=0.32)
 for ax, yt, yp, m, lbl, col in [
     (axes[0], ytr.to_numpy(), pred_tr, m_tr, "Training set", C_BLUE),
     (axes[1], yte.to_numpy(), pred_te, m_te, "Test set",     C_RED),
 ]:
     lim = [0, max(yt.max(), yp.max()) * 1.07]
-    ax.plot(lim, lim, color="#333333", lw=1.0, ls="--", zorder=3, label="1:1 line")
-    ax.scatter(yt, yp, s=14, c=col, alpha=0.45, lw=0, zorder=4,
+    ax.plot(lim, lim, color="#333333", lw=0.8, ls="--", zorder=3, label="1:1 line")
+    ax.scatter(yt, yp, s=12, c=col, alpha=0.45, lw=0, zorder=4,
                label=f"{lbl} (n={len(yt)})")
     txt = (f"$R^2$ = {m['R2']:.4f}\nRMSE = {m['RMSE']:.4f} {UNIT}\n"
            f"MAE = {m['MAE']:.4f} {UNIT}\nMedAPE = {m['MedAPE']:.1f} %")
-    ax.text(0.97, 0.05, txt, transform=ax.transAxes, fontsize=8,
+    ax.text(0.97, 0.05, txt, transform=ax.transAxes, fontsize=6.5,
             va="bottom", ha="right",
             bbox=dict(boxstyle="round,pad=0.3", facecolor="white",
                       edgecolor="#CCCCCC", lw=0.5, alpha=0.9))
@@ -791,11 +814,9 @@ for ax, yt, yp, m, lbl, col in [
     ax.set_aspect("equal")
     ax.set_xlabel(f"Measured {TARGET_LABEL}")
     ax.set_ylabel(f"Predicted {TARGET_LABEL}")
-    ax.set_title(lbl, fontweight="bold", pad=4)
     ax.legend(loc="upper left")
 for ax, letter in zip(axes, "ab"):
-    ax.text(-0.14, 1.05, letter, transform=ax.transAxes,
-            fontweight="bold", fontsize=10)
+    panel_label(ax, letter)
 save_fig(fig, "Fig1_ActualVsPredicted")
 
 # %% [markdown]
@@ -803,7 +824,7 @@ save_fig(fig, "Fig1_ActualVsPredicted")
 
 # %%
 resid = yte.to_numpy() - pred_te
-fig, axes = plt.subplots(1, 3, figsize=(7.2, 2.5))
+fig, axes = plt.subplots(1, 3, figsize=(FULL_W, 2.4))
 axes[0].axhline(0, color="#333333", lw=0.8, ls="--")
 axes[0].scatter(pred_te, resid, s=10, c=C_RED, alpha=0.5, lw=0)
 axes[0].set_xlabel(f"Predicted {TARGET_LABEL}")
@@ -825,19 +846,81 @@ axes[2].get_lines()[1].set(color="#333333", lw=1)
 axes[2].set_xlabel("Theoretical quantiles")
 axes[2].set_ylabel("Ordered residuals")
 for ax, letter in zip(axes, "abc"):
-    ax.text(-0.2, 1.06, letter, transform=ax.transAxes,
-            fontweight="bold", fontsize=10)
+    panel_label(ax, letter, dx=-0.22)
 fig.tight_layout()
 save_fig(fig, "Fig6_Residuals")
 
 # %% [markdown]
-# ## 14. Split-conformal prediction intervals (Fig. 9, Table S9)
+# ## 14. Applicability domain — Williams plot (Fig. 11, Table S11)
+#
+# Leverage $h_i$ is computed from the standardized training feature matrix
+# (with intercept; pseudo-inverse for numerical stability), with the
+# conventional warning threshold $h^* = 3p/n$. Residuals are standardized by
+# the RMSE of their own split. Samples with $h < h^*$ and |standardized
+# residual| < 3 lie inside the applicability domain, where predictions are
+# interpolative and most reliable; new mixtures outside this domain should
+# be flagged before the model is applied to them.
+
+# %%
+if RUN_WILLIAMS:
+    ad_scaler = StandardScaler().fit(X_tr.to_numpy())
+    A_tr = np.c_[np.ones(len(X_tr)), ad_scaler.transform(X_tr.to_numpy())]
+    A_te = np.c_[np.ones(len(X_te)), ad_scaler.transform(X_te.to_numpy())]
+    xtx_inv = np.linalg.pinv(A_tr.T @ A_tr)
+    h_tr = np.einsum("ij,jk,ik->i", A_tr, xtx_inv, A_tr)
+    h_te = np.einsum("ij,jk,ik->i", A_te, xtx_inv, A_te)
+    h_star = 3.0 * A_tr.shape[1] / len(A_tr)
+
+    d_tr = (ytr.to_numpy() - pred_tr) / m_tr["RMSE"]
+    d_te = (yte.to_numpy() - pred_te) / m_te["RMSE"]
+    in_ad_tr = (h_tr < h_star) & (np.abs(d_tr) < 3)
+    in_ad_te = (h_te < h_star) & (np.abs(d_te) < 3)
+    print(f"Williams AD: h*={h_star:.4f}  "
+          f"train inside AD: {in_ad_tr.mean() * 100:.1f}%  "
+          f"test inside AD: {in_ad_te.mean() * 100:.1f}%")
+    pd.DataFrame([
+        {"split": "train", "n": len(h_tr), "h_star": h_star,
+         "pct_inside_AD": in_ad_tr.mean() * 100,
+         "n_high_leverage": int((h_tr >= h_star).sum()),
+         "n_residual_outlier": int((np.abs(d_tr) >= 3).sum())},
+        {"split": "test", "n": len(h_te), "h_star": h_star,
+         "pct_inside_AD": in_ad_te.mean() * 100,
+         "n_high_leverage": int((h_te >= h_star).sum()),
+         "n_residual_outlier": int((np.abs(d_te) >= 3).sum())},
+    ]).round(4).to_csv(RES_DIR / "Table_S11_applicability_domain.csv",
+                       index=False)
+
+    fig, ax = plt.subplots(figsize=(SINGLE_W, 2.9))
+    ax.scatter(h_tr, d_tr, s=7, c=C_GREY, alpha=0.4, lw=0,
+               label=f"train (n={len(h_tr)})")
+    ax.scatter(h_te, d_te, s=9, c=C_BLUE, alpha=0.7, lw=0,
+               label=f"test (n={len(h_te)})")
+    ax.axvline(h_star, color=C_RED, lw=0.8, ls="--")
+    ax.axhline(3, color=C_RED, lw=0.8, ls=":")
+    ax.axhline(-3, color=C_RED, lw=0.8, ls=":")
+    dmax = max(3.6, np.abs(np.r_[d_tr, d_te]).max() * 1.1)
+    ax.set_ylim(-dmax, dmax)
+    ax.text(h_star, dmax * 0.92, " $h^*$", color=C_RED, fontsize=6.5, va="top")
+    ax.set_xlabel("Leverage $h$")
+    ax.set_ylabel("Standardized residual")
+    ax.legend(loc="lower right", bbox_to_anchor=(1.0, 1.01),
+              borderaxespad=0, ncols=2)
+    fig.tight_layout()
+    save_fig(fig, "Fig11_WilliamsAD")
+
+# %% [markdown]
+# ## 15. Cross-conformal prediction intervals (Fig. 9, Table S9)
 #
 # The symmetric half-width *q* is the finite-sample-corrected
 # (1 − α)-quantile of the absolute out-of-fold residuals from the fold-pure
-# CV (a leak-free calibration set that costs no extra training data).
-# Intervals `prediction ± q` then carry ≈ (1 − α) marginal coverage (95 % by
-# default), which is verified empirically on the holdout test set.
+# CV — the *cross-conformal* construction (Vovk, 2015), which reuses
+# leak-free CV residuals as the calibration set instead of sacrificing a
+# held-out calibration split. Cross-conformal intervals carry an approximate
+# (1 − α) marginal coverage guarantee that is mildly conservative in
+# practice (calibration models are trained on 9/10 of the training data),
+# so coverage is verified empirically on the untouched holdout test set —
+# both marginally (**a**) and within quartiles of measured expansion (**b**),
+# the latter checking that coverage does not degrade in any expansion range.
 
 # %%
 if RUN_CONFORMAL:
@@ -851,45 +934,128 @@ if RUN_CONFORMAL:
     q = conformal_halfwidth(oof_resid_abs)
     covered = np.abs(yte.to_numpy() - pred_te) <= q
     coverage = float(covered.mean())
-    print(f"conformal: half-width q={q:.4f} {UNIT}, target "
+    print(f"cross-conformal: half-width q={q:.4f} {UNIT}, target "
           f"{int((1 - CONF_ALPHA) * 100)}% -> empirical coverage "
           f"{coverage * 100:.1f}% on {len(yte)} test points")
-    pd.DataFrame([{"alpha": CONF_ALPHA, "half_width_q": q,
-                   "target_coverage": 1 - CONF_ALPHA,
-                   "empirical_coverage": coverage,
-                   "n_test": len(yte)}]).round(4) \
-        .to_csv(RES_DIR / "Table_S9_conformal_summary.csv", index=False)
+
+    # conditional coverage within quartiles of measured expansion
+    edges = np.quantile(yte.to_numpy(), [0, 0.25, 0.50, 0.75, 1.0])
+    edges[-1] += 1e-9
+    bin_idx = np.clip(np.digitize(yte.to_numpy(), edges) - 1, 0, 3)
+    bin_rows = [{"bin": f"Q{b + 1}",
+                 "range_low": edges[b], "range_high": edges[b + 1],
+                 "n": int((bin_idx == b).sum()),
+                 "coverage": float(covered[bin_idx == b].mean())}
+                for b in range(4)]
+    summary = pd.concat([
+        pd.DataFrame([{"bin": "overall", "range_low": edges[0],
+                       "range_high": edges[-1], "n": len(yte),
+                       "coverage": coverage}]),
+        pd.DataFrame(bin_rows)], ignore_index=True)
+    summary.insert(0, "half_width_q", q)
+    summary.insert(0, "target_coverage", 1 - CONF_ALPHA)
+    summary.round(4).to_csv(RES_DIR / "Table_S9_conformal_summary.csv",
+                            index=False)
 
     order = np.argsort(pred_te)
     pos = np.arange(len(yte))
     cov_s = covered[order]
-    fig, ax = plt.subplots(figsize=(7.0, 2.8))
-    ax.fill_between(pos, pred_te[order] - q, pred_te[order] + q,
-                    color=C_BLUE, alpha=0.18, lw=0,
-                    label=f"{int((1 - CONF_ALPHA) * 100)}% conformal interval "
-                          f"(±{q:.3f} {UNIT})")
-    ax.plot(pos, pred_te[order], color=C_BLUE, lw=0.9, label="prediction")
-    ax.scatter(pos[cov_s], yte.to_numpy()[order][cov_s], s=7, c=C_GREY, lw=0,
-               zorder=3, label="measured (covered)")
-    ax.scatter(pos[~cov_s], yte.to_numpy()[order][~cov_s], s=10, c=C_RED, lw=0,
-               zorder=4, label="measured (outside)")
-    ax.set_xlabel("Test samples (sorted by predicted value)")
-    ax.set_ylabel(TARGET_LABEL.capitalize())
-    ax.text(0.02, 0.96, f"empirical coverage = {coverage * 100:.1f} %",
-            transform=ax.transAxes, va="top")
-    ax.legend(loc="lower right", ncols=2)
+    fig, axes = plt.subplots(1, 2, figsize=(FULL_W, 2.7),
+                             gridspec_kw={"width_ratios": [2.4, 1]})
+    axes[0].fill_between(pos, pred_te[order] - q, pred_te[order] + q,
+                         color=C_BLUE, alpha=0.18, lw=0,
+                         label=f"{int((1 - CONF_ALPHA) * 100)}% conformal "
+                               f"interval (±{q:.3f} {UNIT})")
+    axes[0].plot(pos, pred_te[order], color=C_BLUE, lw=0.9, label="prediction")
+    axes[0].scatter(pos[cov_s], yte.to_numpy()[order][cov_s], s=6, c=C_GREY,
+                    lw=0, zorder=3, label="measured (covered)")
+    axes[0].scatter(pos[~cov_s], yte.to_numpy()[order][~cov_s], s=9, c=C_RED,
+                    lw=0, zorder=4, label="measured (outside)")
+    axes[0].set_xlabel("Test samples (sorted by predicted value)")
+    axes[0].set_ylabel(TARGET_LABEL.capitalize())
+    axes[0].text(0.02, 0.96, f"empirical coverage = {coverage * 100:.1f} %",
+                 transform=axes[0].transAxes, va="top")
+    axes[0].legend(loc="lower right", ncols=2)
+
+    bpos = np.arange(4)
+    axes[1].bar(bpos, [r["coverage"] for r in bin_rows], color=C_BLUE,
+                alpha=0.85, width=0.65)
+    axes[1].axhline(1 - CONF_ALPHA, color=C_RED, lw=0.9, ls="--",
+                    label=f"target {1 - CONF_ALPHA:.0%}")
+    for b, r in enumerate(bin_rows):
+        axes[1].text(b, r["coverage"] + 0.012, f"n={r['n']}", ha="center",
+                     fontsize=5.5)
+    axes[1].set_xticks(bpos, [r["bin"] for r in bin_rows])
+    axes[1].set_ylim(0, 1.1)
+    axes[1].set_xlabel("Measured-expansion quartile")
+    axes[1].set_ylabel("Coverage")
+    axes[1].legend(loc="lower right", bbox_to_anchor=(1.0, 1.01),
+                   borderaxespad=0)
+    panel_label(axes[0], "a", dx=-0.06)
+    panel_label(axes[1], "b", dx=-0.30)
     fig.tight_layout()
     save_fig(fig, "Fig9_ConformalIntervals")
 
 # %% [markdown]
-# ## 15. SHAP feature attribution (Figs. 2–3, Table S5)
+# ## 16. Expansion-limit class agreement (Fig. S3, Table S10)
+#
+# Mortar-bar expansion limits of 0.10 % and 0.20 % are widely used to grade
+# aggregate reactivity (innocuous / potentially reactive / reactive).
+# Mapping measured and predicted test-set expansions onto these three
+# classes quantifies the decision-level reliability of the regression
+# model. Agreement is summarized by overall accuracy and Cohen's κ
+# (unweighted and, given the ordinal classes, linearly weighted).
+
+# %%
+if RUN_THRESHOLD:
+    cls_true = np.digitize(yte.to_numpy(), EXPANSION_LIMITS)
+    cls_pred = np.digitize(pred_te, EXPANSION_LIMITS)
+    cls_labels = [f"< {EXPANSION_LIMITS[0]:g}",
+                  f"{EXPANSION_LIMITS[0]:g}–{EXPANSION_LIMITS[1]:g}",
+                  f"> {EXPANSION_LIMITS[1]:g}"]
+    cm = confusion_matrix(cls_true, cls_pred, labels=[0, 1, 2])
+    acc = float(np.trace(cm)) / cm.sum()
+    kappa = float(cohen_kappa_score(cls_true, cls_pred, labels=[0, 1, 2]))
+    kappa_lin = float(cohen_kappa_score(cls_true, cls_pred, labels=[0, 1, 2],
+                                        weights="linear"))
+    print(f"expansion-limit agreement ({EXPANSION_LIMITS} {UNIT}): "
+          f"accuracy={acc * 100:.1f}%  kappa={kappa:.3f}  "
+          f"kappa_linear={kappa_lin:.3f}")
+    cm_df = pd.DataFrame(cm, index=[f"measured {c}" for c in cls_labels],
+                         columns=[f"predicted {c}" for c in cls_labels])
+    cm_df["accuracy"] = [acc, np.nan, np.nan]
+    cm_df["kappa"] = [kappa, np.nan, np.nan]
+    cm_df["kappa_linear"] = [kappa_lin, np.nan, np.nan]
+    cm_df.round(4).to_csv(RES_DIR / "Table_S10_threshold_agreement.csv")
+
+    fig, ax = plt.subplots(figsize=(SINGLE_W, 2.9))
+    im = ax.imshow(cm, cmap="Blues")
+    for i in range(3):
+        for j in range(3):
+            ax.text(j, i, f"{cm[i, j]}", ha="center", va="center", fontsize=7,
+                    color="white" if cm[i, j] > cm.max() / 2 else "#333333")
+    ax.set_xticks(range(3), cls_labels)
+    ax.set_yticks(range(3), cls_labels)
+    ax.set_xlabel(f"Predicted expansion class ({UNIT})")
+    ax.set_ylabel(f"Measured expansion class ({UNIT})")
+    ax.set_title(f"accuracy = {acc * 100:.1f} %,  Cohen's κ = {kappa:.3f}",
+                 fontsize=7, pad=4)
+    for s in ("top", "right"):
+        ax.spines[s].set_visible(True)
+    fig.tight_layout()
+    save_fig(fig, "FigS3_ThresholdAgreement")
+
+# %% [markdown]
+# ## 17. SHAP feature attribution (Figs. 2, 3, S2, Table S5)
 #
 # Exact TreeSHAP values are computed for the gradient-boosting base learners
 # and combined with their renormalized meta-learner weights. TabPFN has no
 # exact SHAP algorithm and is excluded from attribution (noted in the figure
 # caption). Because the base learners operate on the Box–Cox-transformed
 # target, SHAP magnitudes are in transformed units; the feature ranking is
-# unaffected.
+# unaffected. Dependence plots for the four most influential features
+# (Fig. S2) reveal the shape of each response and the strongest pairwise
+# interaction, selected automatically by SHAP.
 
 # %%
 if RUN_SHAP:
@@ -905,34 +1071,63 @@ if RUN_SHAP:
             X_te.to_numpy())
 
     X_te_disp = pd.DataFrame(X_te.to_numpy(), columns=DISPLAY_NAMES)
-    plt.figure(figsize=(5.2, 4.6))
-    shap.summary_plot(shap_vals, X_te_disp, show=False, max_display=15,
-                      plot_size=None, alpha=0.6)
-    fig = plt.gcf()
-    fig.tight_layout()
-    save_fig(fig, "Fig2_SHAP_beeswarm")
-
     mean_abs = pd.Series(np.abs(shap_vals).mean(axis=0), index=DISPLAY_NAMES)
     mean_abs.sort_values(ascending=False).round(5) \
         .to_csv(RES_DIR / "Table_S5_shap_importance.csv",
                 header=["mean_abs_shap"])
+
+    # Fig. 2 — beeswarm
+    plt.figure(figsize=(5.0, 4.4))
+    shap.summary_plot(shap_vals, X_te_disp, show=False, max_display=15,
+                      plot_size=None, alpha=0.6)
+    fig = plt.gcf()
+    ax = plt.gca()
+    ax.tick_params(labelsize=7)
+    ax.set_xlabel("SHAP value (Box–Cox units)", fontsize=7.5)
+    if len(fig.axes) > 1:  # colorbar
+        cax = fig.axes[-1]
+        cax.tick_params(labelsize=6)
+        cax.set_ylabel("Feature value", fontsize=6.5)
+    fig.tight_layout()
+    save_fig(fig, "Fig2_SHAP_beeswarm")
+
+    # Fig. 3 — mean |SHAP| bar
     top = mean_abs.sort_values().tail(15)
-    fig, ax = plt.subplots(figsize=(3.6, 3.8))
+    fig, ax = plt.subplots(figsize=(SINGLE_W, 3.6))
     ax.barh(np.arange(len(top)), top.values, color=C_BLUE, height=0.65)
     ax.set_yticks(np.arange(len(top)), top.index)
     ax.set_xlabel("mean |SHAP value| (Box–Cox units)")
     fig.tight_layout()
     save_fig(fig, "Fig3_SHAP_bar")
 
+    # Fig. S2 — dependence plots for the four most influential features
+    top4 = list(mean_abs.sort_values(ascending=False).index[:4])
+    fig, axes = plt.subplots(2, 2, figsize=(FULL_W, 5.0))
+    for ax, feat in zip(axes.ravel(), top4):
+        shap.dependence_plot(feat, shap_vals, X_te_disp, ax=ax, show=False,
+                             interaction_index="auto", dot_size=5, alpha=0.6)
+        ax.tick_params(labelsize=6.5)
+        ax.set_xlabel(ax.get_xlabel(), fontsize=7)
+        ax.set_ylabel("SHAP value (Box–Cox units)", fontsize=7)
+    main_axes = set(axes.ravel())
+    for cax in fig.axes:  # shrink the per-panel interaction colorbars
+        if cax not in main_axes:
+            cax.tick_params(labelsize=6)
+            cax.set_ylabel(cax.get_ylabel(), fontsize=6.5)
+    for ax, letter in zip(axes.ravel(), "abcd"):
+        panel_label(ax, letter, dx=-0.16)
+    fig.tight_layout()
+    save_fig(fig, "FigS2_SHAP_dependence")
+
 # %% [markdown]
-# ## 16. Feature–target correlation structure (Fig. 7, Table S6)
+# ## 18. Feature–target correlation structure (Fig. 7, Table S6)
 
 # %%
 corr_df = X_tr.copy()
 corr_df.columns = DISPLAY_NAMES
 corr_df[TARGET_LABEL] = ytr.to_numpy()
 corr = corr_df.corr(method="pearson")
-fig, ax = plt.subplots(figsize=(7.4, 6.4))
+fig, ax = plt.subplots(figsize=(FULL_W, 6.2))
 im = ax.imshow(corr.values, cmap="RdBu_r", vmin=-1, vmax=1)
 ax.set_xticks(range(len(corr)), corr.columns, rotation=90, fontsize=6)
 ax.set_yticks(range(len(corr)), corr.columns, fontsize=6)
@@ -943,7 +1138,7 @@ save_fig(fig, "Fig7_CorrelationHeatmap")
 corr.round(3).to_csv(RES_DIR / "Table_S6_correlation_matrix.csv")
 
 # %% [markdown]
-# ## 17. Learning curve (Fig. 5, Table S7)
+# ## 19. Learning curve (Fig. 5, Table S7)
 #
 # The stack is retrained on random subsets of the training split (fold-pure
 # preprocessing refit per subset) and evaluated on the fixed holdout test
@@ -973,7 +1168,7 @@ if RUN_LEARNING_CURVE:
     lc = pd.DataFrame(lc_rows)
     lc.round(4).to_csv(RES_DIR / "Table_S7_learning_curve.csv", index=False)
 
-    fig, ax1 = plt.subplots(figsize=(3.6, 2.8))
+    fig, ax1 = plt.subplots(figsize=(SINGLE_W, 2.7))
     ax1.plot(lc["n_train"], lc["R2"], "o-", color=C_BLUE, ms=4, lw=1.2)
     ax1.set_xlabel("Training set size")
     ax1.set_ylabel(r"Test $R^2$", color=C_BLUE)
@@ -987,7 +1182,7 @@ if RUN_LEARNING_CURVE:
     save_fig(fig, "Fig5_LearningCurve")
 
 # %% [markdown]
-# ## 18. y-randomization test (Fig. 8, Table S8)
+# ## 20. y-randomization test (Fig. 8, Table S8)
 #
 # The training targets are randomly permuted and the full pipeline retrained.
 # If performance on permuted targets collapses to chance (R² ≤ 0), the real
@@ -1015,7 +1210,7 @@ if RUN_Y_RANDOMIZATION:
                   "R2": perm_r2}).round(4) \
         .to_csv(RES_DIR / "Table_S8_y_randomization.csv", index=False)
 
-    fig, ax = plt.subplots(figsize=(3.6, 2.8))
+    fig, ax = plt.subplots(figsize=(SINGLE_W, 2.7))
     ax.hist(perm_r2, bins=max(5, len(perm_r2) // 2), color=C_GREY, alpha=0.85,
             label=f"permuted targets (n={len(perm_r2)})")
     ax.axvline(m_te["R2"], color=C_RED, lw=1.4,
@@ -1027,7 +1222,7 @@ if RUN_Y_RANDOMIZATION:
     save_fig(fig, "Fig8_yRandomization")
 
 # %% [markdown]
-# ## 19. Multi-seed holdout stability (Fig. 10, Table S3)
+# ## 21. Multi-seed holdout stability (Fig. 10, Table S3)
 #
 # The 80/20 split and all model seeds are varied jointly across five seeds;
 # the spread of the resulting test metrics measures the sensitivity of the
@@ -1061,7 +1256,7 @@ if RUN_SEED_STABILITY:
     print(f"  seeds: {STABILITY_SEEDS}")
     seed_df.round(4).to_csv(RES_DIR / "Table_S3_seed_stability.csv")
 
-    fig, axes = plt.subplots(1, 2, figsize=(7.0, 2.6))
+    fig, axes = plt.subplots(1, 2, figsize=(FULL_W, 2.6))
     axes[0].boxplot([cv_table["R2"], cv_table["RMSE"] * 10],
                     tick_labels=[r"$R^2$", r"RMSE $\times$ 10"],
                     widths=0.5, medianprops={"color": C_RED})
@@ -1077,13 +1272,12 @@ if RUN_SEED_STABILITY:
     axes[1].margins(y=0.25)
     axes[1].legend(loc="best")
     for ax, letter in zip(axes, "ab"):
-        ax.text(-0.12, 1.05, letter, transform=ax.transAxes,
-                fontweight="bold", fontsize=10)
+        panel_label(ax, letter, dx=-0.12)
     fig.tight_layout()
     save_fig(fig, "Fig10_Stability")
 
 # %% [markdown]
-# ## 20. Archive outputs
+# ## 22. Archive outputs
 
 # %%
 archive = Path("ASR_publication_outputs.zip")

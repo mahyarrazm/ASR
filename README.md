@@ -62,22 +62,34 @@ feature values are preserved and imputed fold-pure inside each split.
 | 10-fold fold-pure cross-validation | Fig. 10a | Table S1 |
 | Baseline / single-model comparison (Ridge, k-NN, Random Forest, LightGBM, CatBoost, TabPFN, stack) under identical folds and preprocessing, with paired Wilcoxon significance vs the stack | Fig. 4 | Tables S2, S2b |
 | 80/20 holdout evaluation | Fig. 1 (parity), Fig. 6 (residual diagnostics incl. Q–Q) | Table S4 |
-| Split-conformal 95 % prediction intervals, calibrated on leak-free out-of-fold CV residuals | Fig. 9 | Table S9 |
-| SHAP feature attribution (TreeSHAP on the GBDT components, meta-weighted) | Fig. 2 (beeswarm), Fig. 3 (bar) | Table S5 |
+| Applicability domain (Williams plot, leverage vs standardized residuals) | Fig. 11 | Table S11 |
+| Cross-conformal 95 % prediction intervals (calibrated on leak-free out-of-fold CV residuals; Vovk-style cross-conformal), with conditional coverage by expansion quartile | Fig. 9 | Table S9 |
+| Expansion-limit class agreement at 0.10 / 0.20 % (confusion matrix, accuracy, Cohen's κ) | Fig. S3 | Table S10 |
+| SHAP feature attribution (TreeSHAP on the GBDT components, meta-weighted) + dependence plots for the top-4 features | Fig. 2 (beeswarm), Fig. 3 (bar), Fig. S2 (dependence) | Table S5 |
 | Feature–target Pearson correlation structure | Fig. 7 | Table S6 |
 | Learning curve (data efficiency) | Fig. 5 | Table S7 |
 | y-randomization (chance-performance / leakage check) | Fig. 8 | Table S8 |
 | Multi-seed holdout stability (5 seeds) | Fig. 10b | Table S3 |
 
-## Reproducibility
+## Reproducibility and methods notes
 
 - All stochastic steps are seeded (`RANDOM_STATE = 256`); package versions
   are printed at the start of every run.
 - All models in the comparison share one fixed set of stratified CV splits
   and the same fold-pure preprocessing and target transform, so differences
-  reflect the learner only.
-- The conformal calibration set (out-of-fold CV residuals) is disjoint from
-  the holdout test set on which coverage is verified.
+  reflect the learner only. Paired Wilcoxon tests on per-fold R² are
+  two-sided; because CV folds share training data, fold-level p-values are
+  approximate (Nadeau & Bengio, 2003) and are reported alongside effect
+  sizes, not as the sole evidence.
+- Prediction intervals use the cross-conformal construction (calibration on
+  out-of-fold CV residuals with a finite-sample-corrected quantile); the
+  calibration set is disjoint from the holdout test set, on which marginal
+  and per-quartile coverage are verified empirically.
+- The Box–Cox exponent (λ = 0.85) and all model hyperparameters were fixed
+  before the evaluation reported here, using the training split only.
+- Figures are produced at final journal size (180 mm / 89 mm column widths,
+  5–7.5 pt lettering, Arial, colorblind-safe palette, vector PDFs with
+  embedded fonts).
 
 ## Local execution
 
