@@ -58,7 +58,7 @@ are preserved and imputed fold-pure inside each split.
 |---|---|---|
 | Dataset overview (target distribution, missingness) | Fig. S1 | Table S0 |
 | 10-fold fold-pure cross-validation | Fig. 10a | Table S1 |
-| Baseline / single-model comparison (Ridge, k-NN, Random Forest, LightGBM, CatBoost, TabPFN, stack) under identical folds and preprocessing | Fig. 4 | Table S2 |
+| Baseline / single-model comparison (Ridge, k-NN, Random Forest, LightGBM, CatBoost, TabPFN, stack) under identical folds and preprocessing, with paired Wilcoxon significance vs the stack | Fig. 4 | Tables S2, S2b |
 | 80/20 holdout evaluation | Fig. 1 (parity), Fig. 6 (residual diagnostics incl. Q–Q) | Table S4 |
 | Split-conformal 90 % prediction intervals, calibrated on leak-free out-of-fold CV residuals | Fig. 9 | Table S9 |
 | SHAP feature attribution (TreeSHAP on the GBDT components, meta-weighted) | Fig. 2 (beeswarm), Fig. 3 (bar) | Table S5 |

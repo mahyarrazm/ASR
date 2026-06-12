@@ -607,12 +607,14 @@ cv_table.round(4).to_csv(RES_DIR / "Table_S1_cv_per_fold_metrics.csv",
                          index_label="fold")
 
 # %% [markdown]
-# ## 11. Baseline and single-model comparison (Fig. 4, Table S2)
+# ## 11. Baseline and single-model comparison (Fig. 4, Tables S2, S2b)
 #
 # Every model is evaluated with the same folds, the same fold-pure
 # preprocessing, and the same Box–Cox target transform, so differences
 # reflect the learner only. The stacked-ensemble row reuses the CV results
-# from the previous section.
+# from the previous section. Because all models share identical folds, a
+# paired Wilcoxon signed-rank test on the per-fold R² quantifies whether the
+# stack's advantage over each competitor is statistically significant.
 
 # %%
 if RUN_MODEL_COMPARISON:
@@ -634,13 +636,16 @@ if RUN_MODEL_COMPARISON:
         return f
 
     rows = []
+    fold_r2 = {}
     for name, factory in comparison_factories().items():
         table, _ = cross_validate(factory, Xtr_raw, ytr, CV_SPLITS, verbose=False)
+        fold_r2[name] = table["R2"].to_numpy()
         rows.append({"model": name,
                      **{f"{c}_mean": table[c].mean() for c in table.columns},
                      **{f"{c}_std": table[c].std() for c in table.columns}})
         print(f"  {name:<18}: R2={rows[-1]['R2_mean']:.4f}+/-{rows[-1]['R2_std']:.4f}  "
               f"RMSE={rows[-1]['RMSE_mean']:.4f}+/-{rows[-1]['RMSE_std']:.4f}")
+    fold_r2["Stacked ensemble"] = cv_table["R2"].to_numpy()
     rows.append({"model": "Stacked ensemble",
                  **{f"{c}_mean": cv_table[c].mean() for c in cv_table.columns},
                  **{f"{c}_std": cv_table[c].std() for c in cv_table.columns}})
@@ -648,7 +653,26 @@ if RUN_MODEL_COMPARISON:
           f"+/-{rows[-1]['R2_std']:.4f}  "
           f"RMSE={rows[-1]['RMSE_mean']:.4f}+/-{rows[-1]['RMSE_std']:.4f}")
     comp = pd.DataFrame(rows).set_index("model")
+
+    # Paired Wilcoxon signed-rank test on per-fold R2 (identical folds), each
+    # model vs the stacked ensemble
+    pvals = {}
+    for name, r2s in fold_r2.items():
+        if name == "Stacked ensemble":
+            pvals[name] = np.nan
+            continue
+        try:
+            pvals[name] = float(
+                st.wilcoxon(fold_r2["Stacked ensemble"], r2s).pvalue)
+        except ValueError:
+            pvals[name] = np.nan
+    comp["p_wilcoxon_vs_stack"] = pd.Series(pvals)
+    print("  paired Wilcoxon (per-fold R2, vs stack): "
+          + "  ".join(f"{n}: p={p:.4f}" for n, p in pvals.items()
+                      if np.isfinite(p)))
     comp.round(4).to_csv(RES_DIR / "Table_S2_model_comparison.csv")
+    pd.DataFrame(fold_r2, index=range(1, len(cv_table) + 1)).round(4) \
+        .to_csv(RES_DIR / "Table_S2b_per_fold_R2.csv", index_label="fold")
 
     order = comp["R2_mean"].sort_values().index
     colors = [C_ORANGE if m == "Stacked ensemble" else C_BLUE for m in order]
