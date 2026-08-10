@@ -1,77 +1,131 @@
-# ASR mortar expansion — stacked ensemble pipeline (v11)
+# Machine-learning prediction of ASR mortar-bar expansion
 
-Reproducible machine-learning pipeline for predicting alkali–silica reaction
-(ASR) mortar-bar expansion from mixture/exposure descriptors, prepared for
-journal submission. Successor to the *v10F + TabPFN* script: same modeling
-core, extended with the comparison and robustness analyses expected for a
-high-impact submission. The model is a *fold-pure*
-stacked ensemble of **LightGBM**, **CatBoost**, and **TabPFN**, combined by a
-**BayesianRidge** meta-learner that is trained only on out-of-fold base-model
-predictions (no information leakage between base and meta levels).
+Reproducible pipeline for predicting alkali–silica reaction (ASR) expansion of
+mortar bars from measured mixture and exposure descriptors. The analysis
+compares eight model families under a common protocol, selects one on
+development data only, reduces the input set against prespecified tolerances,
+and validates the result on a locked holdout that shares no mixture with the
+training data.
 
 ## Contents
 
-| File | Description |
+| File | Purpose |
 |---|---|
-| `ASR_pipeline.ipynb` | Main notebook (Google Colab ready) — runs the full analysis and renders every figure inline |
-| `asr_pipeline.py` | Same pipeline as a plain Python script (jupytext-paired with the notebook) |
-| `requirements.txt` | Python dependencies |
+| `asr_publication_pipeline.py` | Complete analysis. Runs top to bottom in Colab or locally. |
+| `ASR_pipeline.ipynb` | The same code as a Colab notebook, one cell per stage. |
+| `make_notebook.py` | Rebuilds the notebook from the script, which is the single source of truth. |
+| `requirements.txt` | Minimum dependency versions. |
+| `requirements-lock.txt` | Exact versions of a verified reference run. |
+
+Run `python make_notebook.py` after editing the script to regenerate the
+notebook.
 
 ## Quick start (Google Colab)
 
-1. Open `ASR_pipeline.ipynb` in Colab and select a **GPU runtime**
-   (recommended for TabPFN; without a GPU or without `tabpfn` installed, the
-   pipeline automatically falls back to the LightGBM + CatBoost ensemble).
-2. Upload the dataset CSV to `/content/` (or mount Google Drive).
-3. Adjust the **Configuration** cell if needed:
-   - `CSV_PATH` — dataset location (default `/content/ASR_FinalE-ComCo.csv`)
-   - `TARGET_COLUMN` — target column name (`None` = last column)
-   - `EXCLUDED_FEATURES` — feature columns to exclude from modeling
-4. *Runtime → Run all*. All figures appear inline; at the end a ZIP archive
-   (`ASR_publication_outputs.zip`) with all figures and tables is offered for
-   download.
+1. Open `ASR_pipeline.ipynb` and select a **GPU runtime** (Runtime → Change
+   runtime type → GPU). TabPFN is impractically slow on CPU. Alternatively,
+   clone this repository in a Colab cell and run the script directly with
+   `%run asr_publication_pipeline.py`, which also renders every figure inline.
+2. TabPFN model weights are gated. Accept the licence at
+   <https://huggingface.co/Prior-Labs>, then add your token as a Colab secret
+   named `TABPFN_TOKEN` (key icon in the sidebar, notebook access on). To run
+   everything else without TabPFN, set `REQUIRE_TABPFN = False`.
+3. Upload the dataset CSV to `/content/`, or mount Google Drive.
+4. Set `CSV_PATH` in the **Configuration** cell.
+5. Runtime → Run all. Figures appear inline; a verified ZIP of all figures and
+   tables is offered for download at the end.
 
-## Data format
-
-A single CSV with one row per sample: numeric feature columns plus a numeric
-target column. Rows with a non-numeric target (e.g. a units/description
-header row) are detected and dropped automatically; missing feature values
-are median-imputed.
-
-## Analysis suite and outputs
-
-| Analysis | Figures (`figures/`, 600-dpi PNG + vector PDF) | Tables (`results/`) |
-|---|---|---|
-| 10-fold fold-pure cross-validation | Fig. 10a | Table S1 |
-| Baseline / single-model comparison (Ridge, k-NN, Random Forest, LightGBM, CatBoost, TabPFN, stack) | Fig. 4 | Table S2 |
-| 80/20 holdout evaluation | Fig. 1 (parity), Fig. 6 (residual diagnostics) | Table S4 |
-| Split-conformal 90 % prediction intervals with empirical coverage | Fig. 9 | — |
-| SHAP feature attribution (TreeSHAP on GBDT components, meta-weighted) | Fig. 2 (beeswarm), Fig. 3 (bar) | Table S5 |
-| Feature–target Pearson correlation structure | Fig. 7 | Table S6 |
-| Learning curve (data efficiency) | Fig. 5 | Table S7 |
-| y-randomization (chance-performance / leakage check) | Fig. 8 | Table S8 |
-| Multi-seed holdout stability (5 seeds) | Fig. 10b | Table S3 |
-
-## Reproducibility
-
-- All stochastic steps are seeded (`SEED = 256`; stability analysis over
-  seeds 256, 7, 42, 101, 2024).
-- Package versions are printed at the start of every run.
-- The cross-validation is *fold-pure*: within each outer fold, the
-  meta-learner is fitted on inner out-of-fold predictions only, and the
-  conformal calibration set is disjoint from both the model-fitting and test
-  sets.
-
-## Local execution
+Local use is identical:
 
 ```bash
 pip install -r requirements.txt
-ASR_CSV_PATH=/path/to/data.csv python asr_pipeline.py
+ASR_CSV_PATH=/path/to/data.csv python asr_publication_pipeline.py
 ```
 
-Set `ASR_FAST_MODE=1` for a quick smoke test with reduced folds/repeats.
+Set `ASR_FAST_MODE=1` for a reduced-setting smoke test, and
+`ASR_SKIP_INSTALL=1` to skip the dependency check.
 
-## License
+## Data format
 
-Code released for academic use; please cite the accompanying article when
-using this pipeline.
+One CSV row per measurement. Required columns are `x1`–`x29` (note the
+capitalised `X21`), `Standard`, and the target `y` in expansion percent.
+`x15`, `x28`, and `Standard` are treated as categorical; the rest are numeric.
+A description row beneath the header is detected automatically: its text is
+harvested as figure labels and the row is then dropped. Missing composition
+values are imputed inside each fold using medians conditioned on whether the
+corresponding supplementary cementitious material is present.
+
+## Analysis protocol
+
+**Measured inputs only.** The five deterministic engineered terms used in
+earlier versions (`total_SCM`, `age_x_temp`, `silica_x_alkali`, `log_age`,
+`SCM_alkali`) are excluded before any model is fitted, so no result depends on
+a transformation of the inputs. `x8` is dropped because relative humidity is
+constant across the analysed rows.
+
+**Mixture grouping.** Mortar-bar testing measures the same specimen repeatedly
+over time, so rows are not independent. Each row is assigned to a mixture group
+by hashing every predictor except testing age. All cross-validation folds and
+the locked holdout are mixture-disjoint: no mixture contributes rows to both a
+training set and the set used to score it. The conventional random-row protocol
+is also run, and the difference between the two is reported as the optimism
+that random splitting introduces.
+
+**Everything below the holdout line.** Model selection, importance ranking, and
+the input-removal boundary use the development partition only. The holdout is
+scored once per reported model.
+
+| Stage | Output |
+|---|---|
+| Data audit: duplication, repeated-measures structure, distributions | Fig. 1, Tables 1–4 |
+| Model comparison under both resampling schemes | Fig. 2, Fig. 3, Tables 6–11 |
+| Target-transform sensitivity | Table 12 |
+| Grouped-permutation importance over folds | Fig. 4, Tables 13–14 |
+| Cumulative least-important-first input removal | Fig. 5, Tables 15–18 |
+| Locked mixture-disjoint holdout, paired bootstrap intervals | Fig. 6, Fig. 7, Tables 19–24 |
+| Split-conformal prediction intervals and coverage | Fig. 8, Table 25 |
+| Reactivity classification at standard expansion limits | Fig. 9, Table 26 |
+| y-randomization and learning curve controls | Fig. 10, Tables 27–28 |
+| Calibration and error stratification | Fig. 11, Tables 29–30 |
+| SHAP attribution with additivity and stability audits | Figs. 12–15, Tables 31–34 |
+
+## Models compared
+
+Ridge as a linear benchmark, a multilayer perceptron, TabNet, LightGBM,
+XGBoost, CatBoost, a fixed 50/50 LightGBM–CatBoost blend, TabPFN, and a
+fold-pure stacked ensemble with a BayesianRidge meta-learner. All
+hyperparameters are fixed in advance; no tuning occurs inside this workflow, so
+the comparison is not confounded by unequal search effort.
+
+## Statistical reporting
+
+- Cross-validated intervals use the Nadeau–Bengio corrected resampled *t*
+  interval, which accounts for the training-set overlap that makes a naive
+  standard error too narrow.
+- Holdout intervals are paired-row percentile bootstrap intervals, conditional
+  on the fitted model.
+- Model comparisons are paired Wilcoxon tests on identical folds with Holm
+  correction across all pairs. They are descriptive: folds overlap and the
+  winner is chosen on the same development results.
+- SHAP values carry an additivity audit and a split-half stability check.
+
+## Outputs
+
+`ASR_publication_outputs/figures/` holds every figure as 600-dpi PNG, vector
+PDF, and editable SVG. `ASR_publication_outputs/results/` holds every table as
+CSV, plus `run_manifest.json` (full protocol and results record),
+`environment_lock.txt`, `artefact_inventory.csv` with SHA-256 checksums,
+`HEADLINE_RESULTS.csv`, and `FIGURE_INDEX_AND_DRAFT_CAPTIONS.csv`.
+
+## Reproducibility
+
+All stochastic steps derive from `RANDOM_STATE`. Preprocessing, the target
+transform, and the stacking meta-learner are refitted inside every fold. The
+run manifest records the resolved version of every dependency, the selected
+model, the exact removal order, and the stated limitations.
+
+## Licence and citation
+
+Code is released for academic use. TabPFN model weights carry a separate
+non-commercial licence from Prior Labs and must be obtained through their
+terms. Please cite the accompanying article when using this pipeline.
