@@ -1,0 +1,16 @@
+# Exact versions of a verified reference run (Google Colab, GPU runtime).
+# Use these for an exact reproduction; requirements.txt gives the supported
+# minimum bounds. Installing exact pins in Colab may force downgrades of the
+# base image and require a runtime restart before the analysis is re-run.
+numpy==2.0.2
+pandas==2.2.2
+scipy==1.15.2
+scikit-learn==1.6.1
+matplotlib==3.10.0
+lightgbm==4.6.0
+catboost==1.2.10
+xgboost==2.1.4
+shap==0.47.2
+torch==2.11.0
+tabpfn==8.1.0
+pytorch-tabnet2==4.6.0
