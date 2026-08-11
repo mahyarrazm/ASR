@@ -6,12 +6,18 @@ Optimises mixture-grouped cross-validated accuracy. No figures, no SHAP, no
 conformal intervals, no feature elimination - only the search loop, so the
 wall-clock cost goes into finding a better model.
 
-Three stages:
+Four stages:
   1. Screen many families and hyperparameter draws on fixed grouped folds.
   2. Spend extra budget refining the families that led the screen.
   3. Blend the best diverse models by non-negative least squares on their
      out-of-fold predictions, scored with a second grouped split so the blend
      weights are not evaluated on the data that fitted them.
+  4. Re-score the leaders on fresh folds, since a winner chosen on one fold
+     set is optimistic.
+
+Two modelling options are searched on and off so the data decides: per-mixture
+sample weighting, and a monotone constraint making expansion non-decreasing
+with testing age.
 
 The locked holdout is never touched. Keep it that way until the search is
 finished, then score the winner once with the full pipeline.
@@ -60,8 +66,16 @@ def _ensure(requirements):
                                "--quiet", *missing])
 
 
+OPTIONAL_REQUIREMENTS = [("tabpfn", "2.0")]
+
 if os.environ.get("ASR_SKIP_INSTALL", "0") != "1":
     _ensure(REQUIREMENTS)
+    # TabPFN is the strongest single model on this dataset, so install it
+    # here rather than relying on it already being present in the runtime.
+    try:
+        _ensure(OPTIONAL_REQUIREMENTS)
+    except Exception as error:  # noqa: BLE001
+        print(f"tabpfn unavailable ({error}); continuing without it")
 
 import numpy as np  # noqa: E402
 import pandas as pd  # noqa: E402
@@ -467,11 +481,37 @@ SCREEN_DRAWS = {
 }
 TRANSFORMS = ["identity", "log1p", "sqrt", "boxcox"]
 
+# Position of the testing-age column inside the ordinal design matrix, used to
+# constrain expansion to be non-decreasing with age.
+AGE_ORDINAL_INDEX = NUMERIC_FEATURES.index(AGE_COLUMN)
+MONOTONE_FAMILIES = {"LightGBM", "XGBoost"}
+
+
+def monotone_vector(n_features):
+    vector = [0] * n_features
+    vector[AGE_ORDINAL_INDEX] = 1
+    return vector
+
+
+def mixture_weights(groups_subset):
+    """
+    Weight rows by the inverse of their mixture's size.
+
+    Mixtures contribute between 1 and 91 rows, so an unweighted fit is
+    dominated by a few heavily sampled mixtures. Equalising the total weight
+    per mixture matches the objective to the task of predicting a new mixture.
+    """
+    series = pd.Series(np.asarray(groups_subset))
+    counts = series.map(series.value_counts())
+    weights = 1.0 / counts.to_numpy(float)
+    return weights * (len(weights) / weights.sum())
+
 
 # =============================================================================
 # Evaluation
 # =============================================================================
-def evaluate(family, config, transform, folds, X, y, seed, collect=True):
+def evaluate(family, config, transform, folds, X, y, seed, collect=True,
+             groups=None, weighted=False, monotone=False):
     """Grouped cross-validation of one configuration. Returns metrics + OOF."""
     y_values = y.to_numpy()
     oof = np.full(len(y_values), np.nan)
@@ -480,11 +520,31 @@ def evaluate(family, config, transform, folds, X, y, seed, collect=True):
         onehot_tr, ordinal_tr = build_matrices(X.iloc[train_index], state)
         onehot_te, ordinal_te = build_matrices(X.iloc[test_index], state)
         forward, inverse = transform_pair(transform, y_values[train_index])
-        estimator, kind = build_estimator(family, config, seed)
+        settings = dict(config)
+        if monotone and family in MONOTONE_FAMILIES:
+            constraints = monotone_vector(ordinal_tr.shape[1])
+            if family == "LightGBM":
+                settings["monotone_constraints"] = constraints
+            else:
+                settings["monotone_constraints"] = tuple(constraints)
+        estimator, kind = build_estimator(family, settings, seed)
         matrix_tr = ordinal_tr if kind == "ordinal" else onehot_tr
         matrix_te = ordinal_te if kind == "ordinal" else onehot_te
-        estimator.fit(matrix_tr.to_numpy(),
-                      forward(y_values[train_index]).ravel())
+        fit_kwargs = {}
+        if weighted and groups is not None:
+            fit_kwargs["sample_weight"] = mixture_weights(
+                np.asarray(groups)[train_index]
+            )
+        try:
+            estimator.fit(matrix_tr.to_numpy(),
+                          forward(y_values[train_index]).ravel(), **fit_kwargs)
+        except (TypeError, ValueError):
+            # Pipelines and some estimators reject sample_weight; those fall
+            # back to an unweighted fit rather than dropping the candidate.
+            if not fit_kwargs:
+                raise
+            estimator.fit(matrix_tr.to_numpy(),
+                          forward(y_values[train_index]).ravel())
         prediction = np.asarray(
             inverse(np.asarray(estimator.predict(matrix_te.to_numpy())).ravel()),
             float,
@@ -527,23 +587,32 @@ def run_search():
     rng = np.random.default_rng(RANDOM_STATE)
     records, oof_store = [], {}
 
-    def trial(family, config, transform, tag):
-        key = f"{family}|{transform}|{tag}"
+    def trial(family, config, transform, tag, weighted=False, monotone=False):
+        flags = ("w" if weighted else "-") + ("m" if monotone else "-")
+        key = f"{family}|{transform}|{flags}|{tag}"
         try:
             outcome = evaluate(family, config, transform, folds, X, y,
-                               RANDOM_STATE)
+                               RANDOM_STATE, groups=groups, weighted=weighted,
+                               monotone=monotone)
         except Exception as error:
-            print(f"  {family:<13} {transform:<8} failed: "
+            print(f"  {family:<13} {transform:<8} {flags} failed: "
                   f"{type(error).__name__}")
             return
         if outcome is None:
             return
         result, oof = outcome
         records.append({"family": family, "transform": transform,
+                        "weighted": weighted, "monotone": monotone,
                         "config": config, "key": key, **result})
         oof_store[key] = oof
-        print(f"  {family:<13} {transform:<8} R2={result['R2']:.4f}  "
+        print(f"  {family:<13} {transform:<8} {flags} R2={result['R2']:.4f}  "
               f"RMSE={result['RMSE']:.4f}  MAE={result['MAE']:.4f}")
+        # Persist after every trial so a disconnected runtime does not lose
+        # the whole search.
+        snapshot = pd.DataFrame(records)
+        snapshot["config"] = snapshot["config"].astype(str)
+        snapshot.sort_values("R2", ascending=False).to_csv(RESULTS_PATH,
+                                                           index=False)
 
     print("=" * 72)
     print("STAGE 1  SCREEN")
@@ -554,10 +623,15 @@ def run_search():
     if HAS_TABPFN:
         for transform in TRANSFORMS:
             trial("TabPFN", {"n_estimators": 8}, transform, "default")
+            trial("TabPFN", {"n_estimators": 8}, transform, "default",
+                  weighted=True)
     for family in SEARCH_FAMILIES:
         for draw in range(scaled(SCREEN_DRAWS[family])):
             transform = str(rng.choice(TRANSFORMS))
-            trial(family, sample_config(family, rng), transform, f"s{draw}")
+            config = sample_config(family, rng)
+            weighted = bool(rng.integers(0, 2))
+            monotone = family in MONOTONE_FAMILIES and bool(rng.integers(0, 2))
+            trial(family, config, transform, f"s{draw}", weighted, monotone)
 
     if not records:
         raise RuntimeError("no configuration completed successfully")
@@ -576,12 +650,17 @@ def run_search():
                if f in SEARCH_FAMILIES]
     print(f"refining: {', '.join(leaders) if leaders else 'none'}")
     for family in leaders:
-        best_transform = leaderboard.loc[
-            leaderboard["family"].eq(family)
-        ].iloc[0]["transform"]
+        best_row = leaderboard.loc[leaderboard["family"].eq(family)].iloc[0]
+        best_transform = best_row["transform"]
         for draw in range(scaled(12)):
             transform = (best_transform if draw % 3 else str(rng.choice(TRANSFORMS)))
-            trial(family, sample_config(family, rng), transform, f"r{draw}")
+            weighted = (bool(best_row["weighted"]) if draw % 3
+                        else bool(rng.integers(0, 2)))
+            monotone = family in MONOTONE_FAMILIES and (
+                bool(best_row["monotone"]) if draw % 3
+                else bool(rng.integers(0, 2)))
+            trial(family, sample_config(family, rng), transform, f"r{draw}",
+                  weighted, monotone)
 
     leaderboard = pd.DataFrame(records).sort_values("R2", ascending=False)
 
@@ -630,13 +709,16 @@ def run_search():
                                           RANDOM_STATE + 9000 + 137 * repeat)
             outcome = evaluate(entry["family"], entry["config"],
                                entry["transform"], confirm_folds, X, y,
-                               RANDOM_STATE, collect=False)
+                               RANDOM_STATE, collect=False, groups=groups,
+                               weighted=bool(entry["weighted"]),
+                               monotone=bool(entry["monotone"]))
             if outcome:
                 scores.append(outcome[0])
         if not scores:
             continue
         confirm_rows.append({
             "family": entry["family"], "transform": entry["transform"],
+            "weighted": entry["weighted"], "monotone": entry["monotone"],
             "screen_R2": entry["R2"],
             "confirm_R2": float(np.mean([s["R2"] for s in scores])),
             "confirm_RMSE": float(np.mean([s["RMSE"] for s in scores])),
@@ -645,7 +727,8 @@ def run_search():
         })
     confirmed = pd.DataFrame(confirm_rows).sort_values("confirm_R2",
                                                        ascending=False)
-    print(confirmed[["family", "transform", "screen_R2", "confirm_R2",
+    print(confirmed[["family", "transform", "weighted", "monotone",
+                     "screen_R2", "confirm_R2",
                      "confirm_RMSE", "confirm_MAE"]].to_string(
         index=False, float_format=lambda v: f"{v:9.4f}"))
 
