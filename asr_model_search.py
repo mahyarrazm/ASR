@@ -28,6 +28,7 @@ Environment:
     ASR_CSV_PATH      dataset location
     ASR_SEARCH_BUDGET multiplier on the number of configurations (default 1.0)
     ASR_SKIP_INSTALL  set to 1 to skip dependency checks
+    TABPFN_TOKEN      TabPFN licence token; also read from a Colab secret
 """
 
 import importlib.metadata
@@ -116,6 +117,20 @@ except ImportError:
     DEVICE = "cpu"
 
 os.environ.setdefault("TABPFN_DISABLE_TELEMETRY", "1")
+if "TABPFN_TOKEN" not in os.environ:
+    # Colab wipes the on-disk TabPFN credential cache when the runtime
+    # restarts, so read the token from a Colab secret named TABPFN_TOKEN
+    # instead of prompting for it on every session.
+    try:
+        from google.colab import userdata
+
+        _token = userdata.get("TABPFN_TOKEN")
+        if _token:
+            os.environ["TABPFN_TOKEN"] = _token
+            print("TabPFN token loaded from Colab secret")
+    except Exception:
+        pass
+
 try:
     from tabpfn import TabPFNRegressor
 
