@@ -184,6 +184,19 @@ warnings.filterwarnings("ignore", category=DeprecationWarning,
 # Configuration
 # =============================================================================
 CSV_PATH = os.environ.get("ASR_CSV_PATH", "/content/ASR_FinalE-ComCo.csv")
+
+# Analysis scope. The dataset pools three kinds of experiment: the accelerated
+# mortar-bar test (ASTM C1260/C1567), the year-long concrete prism test
+# (ASTM C1293), and a block of non-standard tests. They differ in temperature,
+# solution, duration and specimen, and pooling them costs accuracy. Restricting
+# the analysis to one protocol is legitimate provided the paper states the
+# scope it reports; "c1260" is the most widely used screening test.
+#   all         every row (pooled)
+#   standard    ASTM-labelled rows only
+#   c1260       accelerated mortar-bar test only
+#   c1293       concrete prism test only
+SCOPE = os.environ.get("ASR_SCOPE", "all")
+STANDARD_COLUMN = "Standard"
 TARGET = "y"
 TARGET_LABEL = "Expansion (%)"
 RANDOM_STATE = 256
@@ -1128,8 +1141,34 @@ def grouped_holdout(groups, test_size, seed):
 # =============================================================================
 # Stage 0: load, group, audit
 # =============================================================================
+def apply_scope(X, y, identifier, scope):
+    """Restrict the analysis to one test protocol and report what was kept."""
+    labels = X[STANDARD_COLUMN].fillna("Unknown").astype(str).str.strip()
+    labels = labels.mask(labels.eq("") | labels.eq("nan"), "Unknown")
+    if scope == "all":
+        mask = pd.Series(True, index=X.index)
+    elif scope == "standard":
+        mask = labels.ne("Unknown")
+    elif scope == "c1260":
+        mask = labels.str.contains("1260|1567", regex=True)
+    elif scope == "c1293":
+        mask = labels.str.contains("1293")
+    else:
+        raise ValueError(f"unknown ASR_SCOPE: {scope}")
+    if int(mask.sum()) < 100:
+        raise ValueError(f"scope '{scope}' keeps only {int(mask.sum())} rows")
+    if scope != "all":
+        print(f"scope '{scope}': kept {int(mask.sum())} of {len(X)} rows "
+              f"({', '.join(sorted(labels[mask].unique()))})")
+    return (X.loc[mask].reset_index(drop=True),
+            y.loc[mask].reset_index(drop=True),
+            None if identifier is None else
+            identifier.loc[mask].reset_index(drop=True))
+
+
 section("STAGE 0  DATA AUDIT")
 X_RAW, Y, AUTO_LABELS, IDENTIFIER = load_data(CSV_PATH)
+X_RAW, Y, IDENTIFIER = apply_scope(X_RAW, Y, IDENTIFIER, SCOPE)
 LABEL_MAP = {**AUTO_LABELS, **FEATURE_LABEL_OVERRIDES}
 GROUPS, GROUP_DESCRIPTION = derive_mixture_groups(X_RAW, IDENTIFIER)
 DATA_AUDIT, GROUP_SIZES = audit_data(X_RAW, Y, GROUPS, GROUP_DESCRIPTION,
@@ -1150,6 +1189,13 @@ factor_inventory = pd.DataFrame([{
     ),
     "feature_policy": "measured inputs only; deterministic engineered terms "
                       "excluded before any model fitting",
+    "analysis_scope": SCOPE,
+    "scope_definition": {
+        "all": "every row, pooling all test protocols",
+        "standard": "ASTM-labelled rows only",
+        "c1260": "accelerated mortar-bar test (ASTM C1260/C1567) only",
+        "c1293": "concrete prism test (ASTM C1293) only",
+    }[SCOPE],
 }])
 save_table(factor_inventory, "Table_02_factor_inventory")
 
@@ -2700,6 +2746,7 @@ figure_index.insert(0, "order", np.arange(1, len(figure_index) + 1))
 save_table(figure_index, "FIGURE_INDEX_AND_DRAFT_CAPTIONS")
 
 headline = pd.DataFrame([
+    {"Item": "Analysis scope", "Value": SCOPE},
     {"Item": "Measurements", "Value": f"{len(Y)} rows"},
     {"Item": "Distinct mixtures", "Value": f"{GROUP_SIZES.size}"},
     {"Item": "Repeated-measure rows", "Value": f"{REPEATED_MEASURE_SHARE:.0%}"},
@@ -2725,6 +2772,7 @@ manifest = {
                 "interpretation",
     "dataset": {
         "path": str(CSV_PATH),
+        "analysis_scope": SCOPE,
         "rows": int(len(Y)),
         "measured_inputs": BASE_FEATURES_LOADED,
         "excluded_engineered_factors": list(EXCLUDED_ENGINEERED_FACTORS),
