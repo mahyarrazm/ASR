@@ -9,16 +9,32 @@ training data.
 
 ## Contents
 
+Three scripts, each with a distinct job. The publication pipeline is the
+deliverable; the other two are the tools used to decide what goes into it.
+
 | File | Purpose |
 |---|---|
-| `asr_publication_pipeline.py` | Complete analysis. Runs top to bottom in Colab or locally. |
+| `asr_publication_pipeline.py` | **Complete publication analysis.** Fifteen figures, thirty-seven tables, run manifest. Runs top to bottom in Colab or locally. |
 | `ASR_pipeline.ipynb` | The same code as a Colab notebook, one cell per stage. |
 | `make_notebook.py` | Rebuilds the notebook from the script, which is the single source of truth. |
+| `asr_model_search.py` | Model and hyperparameter search over sixteen families, four target transforms, per-mixture weighting and a monotone age constraint. No figures, so the time goes into the search. |
+| `asr_structure.py` | Compares four ways of framing the problem — pooled, per test standard, kinetic curve, and hybrid — and reports a variance decomposition with oracle ceilings. Answers whether accuracy is limited by the model or by the formulation. |
 | `requirements.txt` | Minimum dependency versions. |
 | `requirements-lock.txt` | Exact versions of a verified reference run. |
 
-Run `python make_notebook.py` after editing the script to regenerate the
+Run `python make_notebook.py` after editing the pipeline to regenerate the
 notebook.
+
+### Which to run
+
+- Reproducing the paper: `asr_publication_pipeline.py`.
+- Asking whether a better model exists: `asr_model_search.py`.
+- Asking whether a better *formulation* exists: `asr_structure.py`. Run this
+  first if the search has plateaued, since a plateau shared across unrelated
+  model families points at the formulation rather than the configuration.
+
+Both search scripts reserve the same locked holdout as the pipeline and never
+read it.
 
 ## Quick start (Google Colab)
 
@@ -96,6 +112,13 @@ XGBoost, CatBoost, a fixed 50/50 LightGBM–CatBoost blend, TabPFN, and a
 fold-pure stacked ensemble with a BayesianRidge meta-learner. All
 hyperparameters are fixed in advance; no tuning occurs inside this workflow, so
 the comparison is not confounded by unequal search effort.
+
+`asr_model_search.py` covers a wider set for exploration — adding
+HistGradientBoosting, ExtraTrees, Random Forest, SVR, kernel ridge, k-nearest
+neighbours, elastic net, PLS and Huber regression — and searches
+hyperparameters within each. Anything promising found there should be promoted
+into the pipeline's fixed specifications rather than tuned inside it, so the
+reported comparison stays free of unequal search effort.
 
 ## Statistical reporting
 
