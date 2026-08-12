@@ -32,7 +32,7 @@ Usage (Google Colab)
 Select a GPU runtime, upload the dataset CSV, set CSV_PATH below, and run all
 cells. TabPFN model weights are gated: accept the licence at
 https://huggingface.co/Prior-Labs and provide a token via the TABPFN_TOKEN
-Colab secret or environment variable. Set REQUIRE_TABPFN = False to run the
+Colab secret or environment variable. Set ASR_USE_TABPFN=0 to run the
 complete analysis without TabPFN.
 """
 
@@ -270,6 +270,11 @@ REACTIVITY_LIMITS = [
 N_PERMUTATION_CONTROLS = 10
 LEARNING_CURVE_FRACTIONS = [0.2, 0.4, 0.6, 0.8, 1.0]
 
+# TabPFN is the strongest single model but needs Python 3.10+, a licence
+# token, and roughly fifty times the runtime on CPU for about +0.03 R2. Set
+# ASR_USE_TABPFN=0 to leave it out entirely, which is the sensible default for
+# a laptop run.
+USE_TABPFN = os.environ.get("ASR_USE_TABPFN", "1") == "1"
 REQUIRE_TABPFN = True
 TABPFN_MODEL_VERSION = "V3"
 TABPFN_N_ESTIMATORS = 8
@@ -931,7 +936,10 @@ def verify_tabpfn_runtime():
 
 
 section("TABPFN AVAILABILITY")
-HAS_TABPFN, TABPFN_STATUS = verify_tabpfn_runtime()
+if USE_TABPFN:
+    HAS_TABPFN, TABPFN_STATUS = verify_tabpfn_runtime()
+else:
+    HAS_TABPFN, TABPFN_STATUS = False, "disabled by ASR_USE_TABPFN=0"
 if HAS_TABPFN:
     print(f"TabPFN verified: {TABPFN_STATUS}")
     STACK_COMPONENTS = ["LightGBM", "CatBoost", TABPFN_NAME]
@@ -942,7 +950,7 @@ else:
         supply a token via the TABPFN_TOKEN Colab secret or environment
         variable, and select a GPU runtime.
     """).strip()
-    if REQUIRE_TABPFN:
+    if REQUIRE_TABPFN and USE_TABPFN:
         raise RuntimeError(message)
     print(message + "\nContinuing without TabPFN.")
 
