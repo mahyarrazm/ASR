@@ -942,7 +942,8 @@ else:
     HAS_TABPFN, TABPFN_STATUS = False, "disabled by ASR_USE_TABPFN=0"
 if HAS_TABPFN:
     print(f"TabPFN verified: {TABPFN_STATUS}")
-    STACK_COMPONENTS = ["LightGBM", "CatBoost", TABPFN_NAME]
+    STACK_COMPONENTS = ([n for n in ("LightGBM", "CatBoost")
+                         if n in BOOSTERS] + [TABPFN_NAME])
 else:
     message = textwrap.dedent(f"""
         TabPFN is unavailable: {TABPFN_STATUS}
