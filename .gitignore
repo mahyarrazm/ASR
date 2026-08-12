@@ -1,10 +1,11 @@
-__pycache__/
-*.pyc
 
 # Run outputs
-ASR_publication_outputs/
+*.pyc
+.venv/
 ASR_publication_outputs.zip
-asr_model_search_results.csv
+ASR_publication_outputs/
+__pycache__/
 asr_model_search_confirmed.csv
+asr_model_search_results.csv
 figures/
 results/
