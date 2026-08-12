@@ -30,6 +30,12 @@ of non-standard tests. The same model scores **0.77 on the mortar-bar rows**
 and **0.17 on the prism rows**. Pooling protocols is what produces the low
 headline number, so the analysis scope is configurable.
 
+## Continuing this work
+
+`HANDOFF.md` carries the project state, the findings, the approaches already
+rejected, and the next steps. Read it first if you are picking this up without
+the conversation that produced it.
+
 ## Contents
 
 | File | Purpose |
