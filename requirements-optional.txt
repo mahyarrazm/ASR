@@ -1,0 +1,12 @@
+# Optional extras, installed separately so a failure here cannot abort the
+# core install. Every script detects what is present and reports which
+# candidates were skipped.
+#
+#   pip install -r requirements-optional.txt
+#
+# TabPFN is the strongest single model but needs a licence token and is very
+# slow on CPU. TabNet is a weak performer here and is published under two
+# names; pytorch-tabnet is the one on PyPI for macOS.
+torch>=2.0
+tabpfn>=2.0
+pytorch-tabnet>=4.1

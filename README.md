@@ -76,7 +76,7 @@ comparison takes a few minutes.
 git clone -b claude/confident-wright-ju9c18 https://github.com/mahyarrazm/ASR
 cd ASR
 python3 -m venv .venv && source .venv/bin/activate
-pip install -r requirements.txt
+pip install -r requirements.txt          # optional extras: -r requirements-optional.txt
 
 python asr_local.py                                  # which scope to report
 ASR_SCOPE=c1260 python asr_publication_pipeline.py   # full figure package
