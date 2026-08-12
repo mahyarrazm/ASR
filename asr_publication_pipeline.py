@@ -126,6 +126,7 @@ import sklearn  # noqa: E402
 from scipy.special import boxcox  # noqa: E402
 from scipy.stats import boxcox_normmax  # noqa: E402
 from matplotlib.patches import Patch  # noqa: E402
+from sklearn.ensemble import HistGradientBoostingRegressor  # noqa: E402
 from sklearn.exceptions import ConvergenceWarning  # noqa: E402
 from sklearn.linear_model import BayesianRidge, Ridge  # noqa: E402
 from sklearn.metrics import (  # noqa: E402
@@ -685,6 +686,10 @@ CAT_PARAMS = dict(
     bagging_temperature=0.242, random_strength=0.414, verbose=0,
     allow_writing_files=False, thread_count=-1,
 )
+HISTGBM_PARAMS = dict(
+    max_iter=600, learning_rate=0.05, max_leaf_nodes=31, min_samples_leaf=10,
+    l2_regularization=0.5,
+)
 XGB_PARAMS = dict(
     n_estimators=1800, max_depth=7, learning_rate=0.035, subsample=0.80,
     colsample_bytree=0.80, min_child_weight=2.0, reg_alpha=0.03,
@@ -838,6 +843,11 @@ def make_model(name, seed, feature_names=None):
         return LGBMRegressor(**LGBM_PARAMS, random_state=seed + 1)
     if name == "CatBoost":
         return CatBoostRegressor(**CAT_PARAMS, random_seed=seed + 2)
+    if name == "HistGBM":
+        # scikit-learn's gradient-boosting implementation. It needs no OpenMP
+        # runtime, so it stays available where LightGBM and XGBoost do not.
+        return HistGradientBoostingRegressor(**HISTGBM_PARAMS,
+                                             random_state=seed + 7)
     if name == "XGBoost":
         return XGBRegressor(**XGB_PARAMS, random_state=seed + 3)
     if name == "MLP":
@@ -955,7 +965,7 @@ else:
         raise RuntimeError(message)
     print(message + "\nContinuing without TabPFN.")
 
-CANDIDATE_MODELS = ["Ridge", "MLP"]
+CANDIDATE_MODELS = ["Ridge", "MLP", "HistGBM"]
 if HAS_TABNET:
     CANDIDATE_MODELS.append("TabNet")
 CANDIDATE_MODELS += [n for n in ("LightGBM", "XGBoost", "CatBoost")
