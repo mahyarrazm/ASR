@@ -50,7 +50,7 @@ REQUIREMENTS = [
     ("scikit-learn", "1.5"), ("matplotlib", "3.9"), ("lightgbm", "4.5"),
     ("catboost", "1.2"), ("xgboost", "2.1"), ("shap", "0.46"),
 ]
-OPTIONAL_REQUIREMENTS = [("tabpfn", "2.0"), ("pytorch-tabnet2", "4.6")]
+OPTIONAL_REQUIREMENTS = [("tabpfn", "2.0"), ("pytorch-tabnet", "4.1")]
 
 
 def _version_tuple(text):
@@ -123,8 +123,6 @@ import pandas as pd  # noqa: E402
 import scipy.stats as st  # noqa: E402
 import shap  # noqa: E402
 import sklearn  # noqa: E402
-from catboost import CatBoostRegressor  # noqa: E402
-from lightgbm import LGBMRegressor  # noqa: E402
 from scipy.special import boxcox  # noqa: E402
 from scipy.stats import boxcox_normmax  # noqa: E402
 from matplotlib.patches import Patch  # noqa: E402
@@ -138,7 +136,25 @@ from sklearn.model_selection import KFold, StratifiedKFold, train_test_split  # 
 from sklearn.neural_network import MLPRegressor  # noqa: E402
 from sklearn.pipeline import make_pipeline  # noqa: E402
 from sklearn.preprocessing import StandardScaler  # noqa: E402
-from xgboost import XGBRegressor  # noqa: E402
+
+# The gradient-boosting libraries load a compiled backend that needs an
+# OpenMP runtime. Where that runtime is absent the import raises OSError from
+# dlopen rather than ImportError, so each is guarded and the affected
+# candidates are dropped from the comparison instead of ending the run.
+BOOSTERS = {}
+for _label, _module, _symbol in (("LightGBM", "lightgbm", "LGBMRegressor"),
+                                 ("XGBoost", "xgboost", "XGBRegressor"),
+                                 ("CatBoost", "catboost", "CatBoostRegressor")):
+    try:
+        BOOSTERS[_label] = getattr(__import__(_module, fromlist=[_symbol]),
+                                   _symbol)
+    except Exception as _error:  # noqa: BLE001
+        print(f"{_label} unavailable ({type(_error).__name__}); it is dropped "
+              f"from the comparison. On macOS install the OpenMP runtime "
+              f"(brew install libomp) to enable it.")
+LGBMRegressor = BOOSTERS.get("LightGBM")
+XGBRegressor = BOOSTERS.get("XGBoost")
+CatBoostRegressor = BOOSTERS.get("CatBoost")
 
 try:
     import torch
@@ -831,7 +847,7 @@ def make_model(name, seed, feature_names=None):
     raise KeyError(name)
 
 
-STACK_COMPONENTS = ["LightGBM", "CatBoost"]
+STACK_COMPONENTS = [n for n in ("LightGBM", "CatBoost") if n in BOOSTERS]
 MATRIX_KIND = {TABPFN_NAME: "ordinal"}
 
 
@@ -933,10 +949,14 @@ else:
 CANDIDATE_MODELS = ["Ridge", "MLP"]
 if HAS_TABNET:
     CANDIDATE_MODELS.append("TabNet")
-CANDIDATE_MODELS += ["LightGBM", "XGBoost", "CatBoost", BLEND_NAME]
+CANDIDATE_MODELS += [n for n in ("LightGBM", "XGBoost", "CatBoost")
+                     if n in BOOSTERS]
+if {"LightGBM", "CatBoost"} <= set(BOOSTERS):
+    CANDIDATE_MODELS.append(BLEND_NAME)
 if HAS_TABPFN:
     CANDIDATE_MODELS.append(TABPFN_NAME)
-CANDIDATE_MODELS.append(STACK_NAME)
+if STACK_COMPONENTS:
+    CANDIDATE_MODELS.append(STACK_NAME)
 
 
 # =============================================================================
