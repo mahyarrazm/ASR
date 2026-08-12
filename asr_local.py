@@ -186,8 +186,9 @@ def model_zoo(seed, use_tabpfn):
             min_child_samples=10, subsample=0.8, subsample_freq=1,
             colsample_bytree=0.8, reg_lambda=1.0, random_state=seed,
             n_jobs=-1, verbose=-1)
-    except ImportError:
-        pass
+    except Exception as error:  # noqa: BLE001
+        print(f"  LightGBM unavailable ({type(error).__name__}); skipping."
+              f" On macOS this usually means: brew install libomp")
     try:
         from xgboost import XGBRegressor
 
@@ -195,16 +196,17 @@ def model_zoo(seed, use_tabpfn):
             n_estimators=800, learning_rate=0.05, max_depth=6, subsample=0.8,
             colsample_bytree=0.8, reg_lambda=2.0, random_state=seed,
             n_jobs=-1, verbosity=0, tree_method="hist")
-    except ImportError:
-        pass
+    except Exception as error:  # noqa: BLE001
+        print(f"  XGBoost unavailable ({type(error).__name__}); skipping."
+              f" On macOS this usually means: brew install libomp")
     try:
         from catboost import CatBoostRegressor
 
         zoo["CatBoost"] = CatBoostRegressor(
             iterations=800, learning_rate=0.05, depth=6, l2_leaf_reg=3.0,
             random_seed=seed, verbose=0, allow_writing_files=False)
-    except ImportError:
-        pass
+    except Exception as error:  # noqa: BLE001
+        print(f"  CatBoost unavailable ({type(error).__name__}); skipping")
     if use_tabpfn:
         try:
             import torch
