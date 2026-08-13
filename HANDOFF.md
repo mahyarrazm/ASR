@@ -15,6 +15,15 @@ pipeline's candidates after the scope comparison showed it winning; whether it
 also wins inside the pipeline on the `standard` scope has not yet been
 confirmed on the real data.
 
+The `standard` scope path itself has been exercised end to end on a synthetic
+dataset built to the real file's structure — 210 mixtures, the same protocol
+mix, SCM blocks correlated near 1.0, repeated measures over age. It completes
+with all eight candidates evaluated, so a real run will not fail partway
+through for structural reasons. Two things that check are worth keeping:
+the composition hash recovered all 153 synthetic mixtures exactly, matching
+the ground-truth identifier, and the leakage gap reproduced (grouped 0.61
+against random-row 0.97). Synthetic data says nothing about which model wins.
+
 ## The two findings that define the project
 
 ### 1. Repeated-measure leakage
@@ -134,6 +143,10 @@ Colab GPU.
 - Restricting scope is legitimate only because the outputs state the scope.
   `Table_02_factor_inventory.csv`, `run_manifest.json` and
   `HEADLINE_RESULTS.csv` all record it automatically.
+- `Table_05_split_audit.csv` reports that the holdout took no part in
+  selection, importance or removal. That is now enforced rather than
+  asserted: the holdout is sealed until stage 4 and any earlier read aborts
+  the run, so the recorded `False` follows from the run having finished.
 - Paired model comparisons are descriptive: folds overlap and the winner is
   chosen on the same development results.
 - SHAP values and the age-by-curing pattern describe the fitted model, not
