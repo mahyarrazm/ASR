@@ -117,6 +117,14 @@ if "TABPFN_TOKEN" not in os.environ:
         pass
 
 import matplotlib as mpl  # noqa: E402
+
+# In a notebook, figures render inline and plt.show() returns immediately. In
+# a terminal the default macOS backend opens a window and plt.show() blocks
+# until it is closed, which stalls an unattended run indefinitely. Outside a
+# notebook, render to files only, unless the backend was set deliberately.
+if "ipykernel" not in sys.modules and not os.environ.get("MPLBACKEND"):
+    mpl.use("Agg")
+
 import matplotlib.pyplot as plt  # noqa: E402
 import numpy as np  # noqa: E402
 import pandas as pd  # noqa: E402
