@@ -1303,6 +1303,48 @@ save_table(correlation.round(3), "Table_04_predictor_correlation", index=True)
 # =============================================================================
 # Partitioning
 # =============================================================================
+class SealedPartition:
+    """
+    Holds the locked holdout shut until the holdout stage opens it.
+
+    Table 5 reports that the holdout took no part in model selection,
+    importance ranking or input removal, and every generalization number in
+    the paper rests on that being true. Stating it in the table proves
+    nothing, so the invariant is enforced here instead: any read before
+    `unseal` raises, and the audit records what was observed rather than a
+    literal. `unseal` returns the underlying object, so nothing downstream of
+    the holdout stage interacts with this wrapper.
+    """
+
+    def __init__(self, payload, label):
+        self._payload = payload
+        self._label = label
+
+    def _refuse(self):
+        raise RuntimeError(
+            f"{self._label} was read before STAGE 4; model selection, "
+            "importance ranking and input removal must use the development "
+            "partition only"
+        )
+
+    def __getattr__(self, name):
+        if name.startswith("_"):
+            raise AttributeError(name)
+        self._refuse()
+
+    def __len__(self):
+        self._refuse()
+
+    def __getitem__(self, key):
+        self._refuse()
+
+    def __iter__(self):
+        self._refuse()
+
+    def unseal(self):
+        return self._payload
+
+
 section("STAGE 0b  PARTITIONING")
 DEV_INDEX, HOLDOUT_INDEX = grouped_holdout(GROUPS, TEST_SIZE, RANDOM_STATE)
 RANDOM_DEV_INDEX, RANDOM_HOLDOUT_INDEX = train_test_split(
@@ -1312,8 +1354,10 @@ RANDOM_DEV_INDEX, RANDOM_HOLDOUT_INDEX = train_test_split(
 X_DEV = X_RAW.iloc[DEV_INDEX].reset_index(drop=True)
 Y_DEV = Y.iloc[DEV_INDEX].reset_index(drop=True)
 GROUPS_DEV = GROUPS[DEV_INDEX]
-X_HOLDOUT = X_RAW.iloc[HOLDOUT_INDEX].reset_index(drop=True)
-Y_HOLDOUT = Y.iloc[HOLDOUT_INDEX].reset_index(drop=True)
+X_HOLDOUT = SealedPartition(X_RAW.iloc[HOLDOUT_INDEX].reset_index(drop=True),
+                            "X_HOLDOUT")
+Y_HOLDOUT = SealedPartition(Y.iloc[HOLDOUT_INDEX].reset_index(drop=True),
+                            "Y_HOLDOUT")
 
 shared_groups = set(GROUPS[DEV_INDEX]).intersection(GROUPS[HOLDOUT_INDEX])
 if shared_groups:
@@ -1325,13 +1369,19 @@ split_audit = pd.DataFrame([{
     "n_holdout_rows": len(HOLDOUT_INDEX),
     "n_development_mixtures": int(pd.Series(GROUPS[DEV_INDEX]).nunique()),
     "n_holdout_mixtures": int(pd.Series(GROUPS[HOLDOUT_INDEX]).nunique()),
-    "holdout_is_mixture_disjoint": True,
-    "mixtures_shared_between_partitions": 0,
+    "holdout_is_mixture_disjoint": not shared_groups,
+    "mixtures_shared_between_partitions": len(shared_groups),
     "split_seed": RANDOM_STATE,
-    "holdout_used_for_selection": False,
-    "holdout_used_for_importance_or_elimination": False,
+    # Filled in at stage 4 from what the seal actually observed, not asserted
+    # here. See SealedPartition.
+    "holdout_used_for_selection": None,
+    "holdout_used_for_importance_or_elimination": None,
     "reference_random_row_holdout_rows": len(RANDOM_HOLDOUT_INDEX),
+    "holdout_seal_enforced": None,
 }])
+# Written now so an aborted run still leaves the split on record, with the
+# selection fields empty because nothing has verified them yet; stage 4
+# overwrites it with the verified values.
 save_table(split_audit, "Table_05_split_audit")
 print(f"  development: {len(DEV_INDEX)} rows / "
       f"{split_audit.loc[0, 'n_development_mixtures']} mixtures")
@@ -1901,6 +1951,18 @@ FINAL_INPUTS = [c for c in BASE_FEATURES_LOADED if c not in FINAL_EXCLUDED]
 # Stage 4: final fit and locked holdout evaluation
 # =============================================================================
 section("STAGE 4  LOCKED HOLDOUT")
+
+# Everything above this line ran on the development partition. Reaching this
+# point is itself the proof: a read of either holdout object during model
+# selection, importance ranking or input removal raises and aborts the run, so
+# the False recorded below is established by execution rather than asserted.
+X_HOLDOUT = X_HOLDOUT.unseal()
+Y_HOLDOUT = Y_HOLDOUT.unseal()
+split_audit["holdout_used_for_selection"] = False
+split_audit["holdout_used_for_importance_or_elimination"] = False
+split_audit["holdout_seal_enforced"] = True
+save_table(split_audit, "Table_05_split_audit")
+print("  holdout seal opened at stage 4 with no earlier access")
 
 
 def fit_final(raw_train, y_train, excluded, seed):
