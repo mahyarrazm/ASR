@@ -41,7 +41,7 @@ the conversation that produced it.
 | File | Purpose |
 |---|---|
 | `asr_publication_pipeline.py` | **The deliverable.** Fifteen figures, thirty-seven tables, run manifest, checksummed archive. |
-| `ASR_pipeline.ipynb` | The same code as a Colab notebook, one cell per stage. |
+| `ASR_pipeline.ipynb` | The same code as a Colab notebook, one cell per stage. Not committed — generated on demand by `make_notebook.py`, so it cannot drift from the pipeline. |
 | `asr_local.py` | Scope comparison. Which test protocol should the paper report? Minutes on a laptop, no GPU. |
 | `asr_model_search.py` | Model and hyperparameter search across sixteen families and four target transforms. |
 | `asr_structure.py` | Compares problem formulations — pooled, per-standard, kinetic-curve, hybrid — with a variance decomposition and oracle ceilings. |
@@ -58,7 +58,7 @@ Select a **GPU runtime**. Add your TabPFN token as a Colab secret named
 to run everything else without it.
 
 ```python
-!git clone -b claude/confident-wright-ju9c18 https://github.com/mahyarrazm/ASR /content/ASR
+!git clone -b claude/asr-expansion-i4z0di https://github.com/mahyarrazm/ASR /content/ASR
 %cd /content/ASR
 
 import os
@@ -79,7 +79,7 @@ Faster and immune to Colab disconnects. On Apple silicon the whole scope
 comparison takes a few minutes.
 
 ```bash
-git clone -b claude/confident-wright-ju9c18 https://github.com/mahyarrazm/ASR
+git clone -b claude/asr-expansion-i4z0di https://github.com/mahyarrazm/ASR
 cd ASR
 python3 -m venv .venv && source .venv/bin/activate
 pip install -r requirements.txt          # optional extras: -r requirements-optional.txt
