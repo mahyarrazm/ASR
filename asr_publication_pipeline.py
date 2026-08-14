@@ -985,6 +985,28 @@ if HAS_TABPFN:
 if STACK_COMPONENTS:
     CANDIDATE_MODELS.append(STACK_NAME)
 
+# A candidate can be dropped from the comparison without editing this file, for
+# instance when one of them destabilises on a particular analysis scope:
+#
+#   ASR_SKIP_MODELS=MLP,TabNet python asr_publication_pipeline.py
+#
+# The excluded names are recorded in the run manifest, because a comparison
+# table is only honest about what it omits if the omission is written down.
+SKIPPED_MODELS = [name.strip() for name
+                  in os.environ.get("ASR_SKIP_MODELS", "").split(",")
+                  if name.strip()]
+if SKIPPED_MODELS:
+    unknown = [n for n in SKIPPED_MODELS if n not in CANDIDATE_MODELS]
+    if unknown:
+        raise SystemExit(
+            f"ASR_SKIP_MODELS names unknown candidates: {unknown}\n"
+            f"available: {', '.join(CANDIDATE_MODELS)}"
+        )
+    CANDIDATE_MODELS = [n for n in CANDIDATE_MODELS if n not in SKIPPED_MODELS]
+    if not CANDIDATE_MODELS:
+        raise SystemExit("ASR_SKIP_MODELS excluded every candidate")
+    print(f"excluded by ASR_SKIP_MODELS: {', '.join(SKIPPED_MODELS)}")
+
 
 # =============================================================================
 # Metrics and resampling
@@ -2823,6 +2845,7 @@ manifest = {
         "rows": int(len(Y)),
         "measured_inputs": BASE_FEATURES_LOADED,
         "excluded_engineered_factors": list(EXCLUDED_ENGINEERED_FACTORS),
+        "excluded_candidate_models": SKIPPED_MODELS,
         "excluded_measured_inputs": EXCLUDED_MEASURED_INPUTS,
         "mixture_grouping": GROUP_DESCRIPTION,
         "n_mixture_groups": int(GROUP_SIZES.size),
