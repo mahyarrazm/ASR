@@ -1,0 +1,650 @@
+dataset: /Users/mahyar/Smart Lab/Lab/ML/Final Dataset/ASR_FinalE-ComCo.csv
+scope  : all
+
+/Users/mahyar/Smart Lab/Lab/ML/ASR/.venv/lib/python3.9/site-packages/urllib3/__init__.py:35: NotOpenSSLWarning: urllib3 v2 only supports OpenSSL 1.1.1+, currently the 'ssl' module is compiled with 'LibreSSL 2.8.3'. See: https://github.com/urllib3/urllib3/issues/3020
+  warnings.warn(
+/Users/mahyar/Smart Lab/Lab/ML/ASR/asr_publication_pipeline.py:351: UserWarning: FigureCanvasAgg is non-interactive, and thus cannot be shown
+  plt.show()
+/Users/mahyar/Smart Lab/Lab/ML/ASR/.venv/lib/python3.9/site-packages/sklearn/utils/extmath.py:203: RuntimeWarning: divide by zero encountered in matmul
+  ret = a @ b
+/Users/mahyar/Smart Lab/Lab/ML/ASR/.venv/lib/python3.9/site-packages/sklearn/utils/extmath.py:203: RuntimeWarning: overflow encountered in matmul
+  ret = a @ b
+/Users/mahyar/Smart Lab/Lab/ML/ASR/.venv/lib/python3.9/site-packages/sklearn/utils/extmath.py:203: RuntimeWarning: invalid value encountered in matmul
+  ret = a @ b
+/Users/mahyar/Smart Lab/Lab/ML/ASR/.venv/lib/python3.9/site-packages/sklearn/linear_model/_base.py:279: RuntimeWarning: divide by zero encountered in matmul
+  return X @ coef_ + self.intercept_
+/Users/mahyar/Smart Lab/Lab/ML/ASR/.venv/lib/python3.9/site-packages/sklearn/linear_model/_base.py:279: RuntimeWarning: overflow encountered in matmul
+  return X @ coef_ + self.intercept_
+/Users/mahyar/Smart Lab/Lab/ML/ASR/.venv/lib/python3.9/site-packages/sklearn/linear_model/_base.py:279: RuntimeWarning: invalid value encountered in matmul
+  return X @ coef_ + self.intercept_
+/Users/mahyar/Smart Lab/Lab/ML/ASR/.venv/lib/python3.9/site-packages/pytorch_tabnet/callbacks.py:172: UserWarning: Best weights from best epoch are automatically used!
+  warnings.warn(wrn_msg)
+/Users/mahyar/Smart Lab/Lab/ML/ASR/.venv/lib/python3.9/site-packages/sklearn/utils/extmath.py:203: RuntimeWarning: divide by zero encountered in matmul
+  ret = a @ b
+/Users/mahyar/Smart Lab/Lab/ML/ASR/.venv/lib/python3.9/site-packages/sklearn/utils/extmath.py:203: RuntimeWarning: overflow encountered in matmul
+  ret = a @ b
+/Users/mahyar/Smart Lab/Lab/ML/ASR/.venv/lib/python3.9/site-packages/sklearn/utils/extmath.py:203: RuntimeWarning: invalid value encountered in matmul
+  ret = a @ b
+/Users/mahyar/Smart Lab/Lab/ML/ASR/.venv/lib/python3.9/site-packages/sklearn/linear_model/_base.py:279: RuntimeWarning: divide by zero encountered in matmul
+  return X @ coef_ + self.intercept_
+/Users/mahyar/Smart Lab/Lab/ML/ASR/.venv/lib/python3.9/site-packages/sklearn/linear_model/_base.py:279: RuntimeWarning: overflow encountered in matmul
+  return X @ coef_ + self.intercept_
+/Users/mahyar/Smart Lab/Lab/ML/ASR/.venv/lib/python3.9/site-packages/sklearn/linear_model/_base.py:279: RuntimeWarning: invalid value encountered in matmul
+  return X @ coef_ + self.intercept_
+/Users/mahyar/Smart Lab/Lab/ML/ASR/.venv/lib/python3.9/site-packages/pytorch_tabnet/callbacks.py:172: UserWarning: Best weights from best epoch are automatically used!
+  warnings.warn(wrn_msg)
+/Users/mahyar/Smart Lab/Lab/ML/ASR/.venv/lib/python3.9/site-packages/sklearn/utils/extmath.py:203: RuntimeWarning: divide by zero encountered in matmul
+  ret = a @ b
+/Users/mahyar/Smart Lab/Lab/ML/ASR/.venv/lib/python3.9/site-packages/sklearn/utils/extmath.py:203: RuntimeWarning: overflow encountered in matmul
+  ret = a @ b
+/Users/mahyar/Smart Lab/Lab/ML/ASR/.venv/lib/python3.9/site-packages/sklearn/utils/extmath.py:203: RuntimeWarning: invalid value encountered in matmul
+  ret = a @ b
+/Users/mahyar/Smart Lab/Lab/ML/ASR/.venv/lib/python3.9/site-packages/sklearn/linear_model/_base.py:279: RuntimeWarning: divide by zero encountered in matmul
+  return X @ coef_ + self.intercept_
+/Users/mahyar/Smart Lab/Lab/ML/ASR/.venv/lib/python3.9/site-packages/sklearn/linear_model/_base.py:279: RuntimeWarning: overflow encountered in matmul
+  return X @ coef_ + self.intercept_
+/Users/mahyar/Smart Lab/Lab/ML/ASR/.venv/lib/python3.9/site-packages/sklearn/linear_model/_base.py:279: RuntimeWarning: invalid value encountered in matmul
+  return X @ coef_ + self.intercept_
+/Users/mahyar/Smart Lab/Lab/ML/ASR/.venv/lib/python3.9/site-packages/pytorch_tabnet/callbacks.py:172: UserWarning: Best weights from best epoch are automatically used!
+  warnings.warn(wrn_msg)
+/Users/mahyar/Smart Lab/Lab/ML/ASR/.venv/lib/python3.9/site-packages/sklearn/utils/extmath.py:203: RuntimeWarning: divide by zero encountered in matmul
+  ret = a @ b
+/Users/mahyar/Smart Lab/Lab/ML/ASR/.venv/lib/python3.9/site-packages/sklearn/utils/extmath.py:203: RuntimeWarning: overflow encountered in matmul
+  ret = a @ b
+/Users/mahyar/Smart Lab/Lab/ML/ASR/.venv/lib/python3.9/site-packages/sklearn/utils/extmath.py:203: RuntimeWarning: invalid value encountered in matmul
+  ret = a @ b
+/Users/mahyar/Smart Lab/Lab/ML/ASR/.venv/lib/python3.9/site-packages/sklearn/linear_model/_base.py:279: RuntimeWarning: divide by zero encountered in matmul
+  return X @ coef_ + self.intercept_
+/Users/mahyar/Smart Lab/Lab/ML/ASR/.venv/lib/python3.9/site-packages/sklearn/linear_model/_base.py:279: RuntimeWarning: overflow encountered in matmul
+  return X @ coef_ + self.intercept_
+/Users/mahyar/Smart Lab/Lab/ML/ASR/.venv/lib/python3.9/site-packages/sklearn/linear_model/_base.py:279: RuntimeWarning: invalid value encountered in matmul
+  return X @ coef_ + self.intercept_
+/Users/mahyar/Smart Lab/Lab/ML/ASR/.venv/lib/python3.9/site-packages/pytorch_tabnet/callbacks.py:172: UserWarning: Best weights from best epoch are automatically used!
+  warnings.warn(wrn_msg)
+/Users/mahyar/Smart Lab/Lab/ML/ASR/.venv/lib/python3.9/site-packages/sklearn/utils/extmath.py:203: RuntimeWarning: divide by zero encountered in matmul
+  ret = a @ b
+/Users/mahyar/Smart Lab/Lab/ML/ASR/.venv/lib/python3.9/site-packages/sklearn/utils/extmath.py:203: RuntimeWarning: overflow encountered in matmul
+  ret = a @ b
+/Users/mahyar/Smart Lab/Lab/ML/ASR/.venv/lib/python3.9/site-packages/sklearn/utils/extmath.py:203: RuntimeWarning: invalid value encountered in matmul
+  ret = a @ b
+/Users/mahyar/Smart Lab/Lab/ML/ASR/.venv/lib/python3.9/site-packages/sklearn/linear_model/_base.py:279: RuntimeWarning: divide by zero encountered in matmul
+  return X @ coef_ + self.intercept_
+/Users/mahyar/Smart Lab/Lab/ML/ASR/.venv/lib/python3.9/site-packages/sklearn/linear_model/_base.py:279: RuntimeWarning: overflow encountered in matmul
+  return X @ coef_ + self.intercept_
+/Users/mahyar/Smart Lab/Lab/ML/ASR/.venv/lib/python3.9/site-packages/sklearn/linear_model/_base.py:279: RuntimeWarning: invalid value encountered in matmul
+  return X @ coef_ + self.intercept_
+/Users/mahyar/Smart Lab/Lab/ML/ASR/.venv/lib/python3.9/site-packages/pytorch_tabnet/callbacks.py:172: UserWarning: Best weights from best epoch are automatically used!
+  warnings.warn(wrn_msg)
+/Users/mahyar/Smart Lab/Lab/ML/ASR/.venv/lib/python3.9/site-packages/sklearn/utils/extmath.py:203: RuntimeWarning: divide by zero encountered in matmul
+  ret = a @ b
+/Users/mahyar/Smart Lab/Lab/ML/ASR/.venv/lib/python3.9/site-packages/sklearn/utils/extmath.py:203: RuntimeWarning: overflow encountered in matmul
+  ret = a @ b
+/Users/mahyar/Smart Lab/Lab/ML/ASR/.venv/lib/python3.9/site-packages/sklearn/utils/extmath.py:203: RuntimeWarning: invalid value encountered in matmul
+  ret = a @ b
+/Users/mahyar/Smart Lab/Lab/ML/ASR/.venv/lib/python3.9/site-packages/sklearn/linear_model/_base.py:279: RuntimeWarning: divide by zero encountered in matmul
+  return X @ coef_ + self.intercept_
+/Users/mahyar/Smart Lab/Lab/ML/ASR/.venv/lib/python3.9/site-packages/sklearn/linear_model/_base.py:279: RuntimeWarning: overflow encountered in matmul
+  return X @ coef_ + self.intercept_
+/Users/mahyar/Smart Lab/Lab/ML/ASR/.venv/lib/python3.9/site-packages/sklearn/linear_model/_base.py:279: RuntimeWarning: invalid value encountered in matmul
+  return X @ coef_ + self.intercept_
+/Users/mahyar/Smart Lab/Lab/ML/ASR/.venv/lib/python3.9/site-packages/pytorch_tabnet/callbacks.py:172: UserWarning: Best weights from best epoch are automatically used!
+  warnings.warn(wrn_msg)
+/Users/mahyar/Smart Lab/Lab/ML/ASR/.venv/lib/python3.9/site-packages/sklearn/utils/extmath.py:203: RuntimeWarning: divide by zero encountered in matmul
+  ret = a @ b
+/Users/mahyar/Smart Lab/Lab/ML/ASR/.venv/lib/python3.9/site-packages/sklearn/utils/extmath.py:203: RuntimeWarning: overflow encountered in matmul
+  ret = a @ b
+/Users/mahyar/Smart Lab/Lab/ML/ASR/.venv/lib/python3.9/site-packages/sklearn/utils/extmath.py:203: RuntimeWarning: invalid value encountered in matmul
+  ret = a @ b
+/Users/mahyar/Smart Lab/Lab/ML/ASR/.venv/lib/python3.9/site-packages/sklearn/linear_model/_base.py:279: RuntimeWarning: divide by zero encountered in matmul
+  return X @ coef_ + self.intercept_
+/Users/mahyar/Smart Lab/Lab/ML/ASR/.venv/lib/python3.9/site-packages/sklearn/linear_model/_base.py:279: RuntimeWarning: overflow encountered in matmul
+  return X @ coef_ + self.intercept_
+/Users/mahyar/Smart Lab/Lab/ML/ASR/.venv/lib/python3.9/site-packages/sklearn/linear_model/_base.py:279: RuntimeWarning: invalid value encountered in matmul
+  return X @ coef_ + self.intercept_
+/Users/mahyar/Smart Lab/Lab/ML/ASR/.venv/lib/python3.9/site-packages/pytorch_tabnet/callbacks.py:172: UserWarning: Best weights from best epoch are automatically used!
+  warnings.warn(wrn_msg)
+/Users/mahyar/Smart Lab/Lab/ML/ASR/.venv/lib/python3.9/site-packages/sklearn/utils/extmath.py:203: RuntimeWarning: divide by zero encountered in matmul
+  ret = a @ b
+/Users/mahyar/Smart Lab/Lab/ML/ASR/.venv/lib/python3.9/site-packages/sklearn/utils/extmath.py:203: RuntimeWarning: overflow encountered in matmul
+  ret = a @ b
+/Users/mahyar/Smart Lab/Lab/ML/ASR/.venv/lib/python3.9/site-packages/sklearn/utils/extmath.py:203: RuntimeWarning: invalid value encountered in matmul
+  ret = a @ b
+/Users/mahyar/Smart Lab/Lab/ML/ASR/.venv/lib/python3.9/site-packages/sklearn/linear_model/_base.py:279: RuntimeWarning: divide by zero encountered in matmul
+  return X @ coef_ + self.intercept_
+/Users/mahyar/Smart Lab/Lab/ML/ASR/.venv/lib/python3.9/site-packages/sklearn/linear_model/_base.py:279: RuntimeWarning: overflow encountered in matmul
+  return X @ coef_ + self.intercept_
+/Users/mahyar/Smart Lab/Lab/ML/ASR/.venv/lib/python3.9/site-packages/sklearn/linear_model/_base.py:279: RuntimeWarning: invalid value encountered in matmul
+  return X @ coef_ + self.intercept_
+/Users/mahyar/Smart Lab/Lab/ML/ASR/.venv/lib/python3.9/site-packages/pytorch_tabnet/callbacks.py:172: UserWarning: Best weights from best epoch are automatically used!
+  warnings.warn(wrn_msg)
+/Users/mahyar/Smart Lab/Lab/ML/ASR/.venv/lib/python3.9/site-packages/sklearn/utils/extmath.py:203: RuntimeWarning: divide by zero encountered in matmul
+  ret = a @ b
+/Users/mahyar/Smart Lab/Lab/ML/ASR/.venv/lib/python3.9/site-packages/sklearn/utils/extmath.py:203: RuntimeWarning: overflow encountered in matmul
+  ret = a @ b
+/Users/mahyar/Smart Lab/Lab/ML/ASR/.venv/lib/python3.9/site-packages/sklearn/utils/extmath.py:203: RuntimeWarning: invalid value encountered in matmul
+  ret = a @ b
+/Users/mahyar/Smart Lab/Lab/ML/ASR/.venv/lib/python3.9/site-packages/sklearn/linear_model/_base.py:279: RuntimeWarning: divide by zero encountered in matmul
+  return X @ coef_ + self.intercept_
+/Users/mahyar/Smart Lab/Lab/ML/ASR/.venv/lib/python3.9/site-packages/sklearn/linear_model/_base.py:279: RuntimeWarning: overflow encountered in matmul
+  return X @ coef_ + self.intercept_
+/Users/mahyar/Smart Lab/Lab/ML/ASR/.venv/lib/python3.9/site-packages/sklearn/linear_model/_base.py:279: RuntimeWarning: invalid value encountered in matmul
+  return X @ coef_ + self.intercept_
+/Users/mahyar/Smart Lab/Lab/ML/ASR/.venv/lib/python3.9/site-packages/pytorch_tabnet/callbacks.py:172: UserWarning: Best weights from best epoch are automatically used!
+  warnings.warn(wrn_msg)
+/Users/mahyar/Smart Lab/Lab/ML/ASR/.venv/lib/python3.9/site-packages/sklearn/utils/extmath.py:203: RuntimeWarning: divide by zero encountered in matmul
+  ret = a @ b
+/Users/mahyar/Smart Lab/Lab/ML/ASR/.venv/lib/python3.9/site-packages/sklearn/utils/extmath.py:203: RuntimeWarning: overflow encountered in matmul
+  ret = a @ b
+/Users/mahyar/Smart Lab/Lab/ML/ASR/.venv/lib/python3.9/site-packages/sklearn/utils/extmath.py:203: RuntimeWarning: invalid value encountered in matmul
+  ret = a @ b
+/Users/mahyar/Smart Lab/Lab/ML/ASR/.venv/lib/python3.9/site-packages/sklearn/linear_model/_base.py:279: RuntimeWarning: divide by zero encountered in matmul
+  return X @ coef_ + self.intercept_
+/Users/mahyar/Smart Lab/Lab/ML/ASR/.venv/lib/python3.9/site-packages/sklearn/linear_model/_base.py:279: RuntimeWarning: overflow encountered in matmul
+  return X @ coef_ + self.intercept_
+/Users/mahyar/Smart Lab/Lab/ML/ASR/.venv/lib/python3.9/site-packages/sklearn/linear_model/_base.py:279: RuntimeWarning: invalid value encountered in matmul
+  return X @ coef_ + self.intercept_
+/Users/mahyar/Smart Lab/Lab/ML/ASR/.venv/lib/python3.9/site-packages/pytorch_tabnet/callbacks.py:172: UserWarning: Best weights from best epoch are automatically used!
+  warnings.warn(wrn_msg)
+/Users/mahyar/Smart Lab/Lab/ML/ASR/.venv/lib/python3.9/site-packages/sklearn/utils/extmath.py:203: RuntimeWarning: divide by zero encountered in matmul
+  ret = a @ b
+/Users/mahyar/Smart Lab/Lab/ML/ASR/.venv/lib/python3.9/site-packages/sklearn/utils/extmath.py:203: RuntimeWarning: overflow encountered in matmul
+  ret = a @ b
+/Users/mahyar/Smart Lab/Lab/ML/ASR/.venv/lib/python3.9/site-packages/sklearn/utils/extmath.py:203: RuntimeWarning: invalid value encountered in matmul
+  ret = a @ b
+/Users/mahyar/Smart Lab/Lab/ML/ASR/.venv/lib/python3.9/site-packages/sklearn/linear_model/_base.py:279: RuntimeWarning: divide by zero encountered in matmul
+  return X @ coef_ + self.intercept_
+/Users/mahyar/Smart Lab/Lab/ML/ASR/.venv/lib/python3.9/site-packages/sklearn/linear_model/_base.py:279: RuntimeWarning: overflow encountered in matmul
+  return X @ coef_ + self.intercept_
+/Users/mahyar/Smart Lab/Lab/ML/ASR/.venv/lib/python3.9/site-packages/sklearn/linear_model/_base.py:279: RuntimeWarning: invalid value encountered in matmul
+  return X @ coef_ + self.intercept_
+/Users/mahyar/Smart Lab/Lab/ML/ASR/.venv/lib/python3.9/site-packages/pytorch_tabnet/callbacks.py:172: UserWarning: Best weights from best epoch are automatically used!
+  warnings.warn(wrn_msg)
+/Users/mahyar/Smart Lab/Lab/ML/ASR/.venv/lib/python3.9/site-packages/sklearn/utils/extmath.py:203: RuntimeWarning: divide by zero encountered in matmul
+  ret = a @ b
+/Users/mahyar/Smart Lab/Lab/ML/ASR/.venv/lib/python3.9/site-packages/sklearn/utils/extmath.py:203: RuntimeWarning: overflow encountered in matmul
+  ret = a @ b
+/Users/mahyar/Smart Lab/Lab/ML/ASR/.venv/lib/python3.9/site-packages/sklearn/utils/extmath.py:203: RuntimeWarning: invalid value encountered in matmul
+  ret = a @ b
+/Users/mahyar/Smart Lab/Lab/ML/ASR/.venv/lib/python3.9/site-packages/sklearn/linear_model/_base.py:279: RuntimeWarning: divide by zero encountered in matmul
+  return X @ coef_ + self.intercept_
+/Users/mahyar/Smart Lab/Lab/ML/ASR/.venv/lib/python3.9/site-packages/sklearn/linear_model/_base.py:279: RuntimeWarning: overflow encountered in matmul
+  return X @ coef_ + self.intercept_
+/Users/mahyar/Smart Lab/Lab/ML/ASR/.venv/lib/python3.9/site-packages/sklearn/linear_model/_base.py:279: RuntimeWarning: invalid value encountered in matmul
+  return X @ coef_ + self.intercept_
+/Users/mahyar/Smart Lab/Lab/ML/ASR/.venv/lib/python3.9/site-packages/pytorch_tabnet/callbacks.py:172: UserWarning: Best weights from best epoch are automatically used!
+  warnings.warn(wrn_msg)
+/Users/mahyar/Smart Lab/Lab/ML/ASR/.venv/lib/python3.9/site-packages/sklearn/utils/extmath.py:203: RuntimeWarning: divide by zero encountered in matmul
+  ret = a @ b
+/Users/mahyar/Smart Lab/Lab/ML/ASR/.venv/lib/python3.9/site-packages/sklearn/utils/extmath.py:203: RuntimeWarning: overflow encountered in matmul
+  ret = a @ b
+/Users/mahyar/Smart Lab/Lab/ML/ASR/.venv/lib/python3.9/site-packages/sklearn/utils/extmath.py:203: RuntimeWarning: invalid value encountered in matmul
+  ret = a @ b
+/Users/mahyar/Smart Lab/Lab/ML/ASR/.venv/lib/python3.9/site-packages/sklearn/linear_model/_base.py:279: RuntimeWarning: divide by zero encountered in matmul
+  return X @ coef_ + self.intercept_
+/Users/mahyar/Smart Lab/Lab/ML/ASR/.venv/lib/python3.9/site-packages/sklearn/linear_model/_base.py:279: RuntimeWarning: overflow encountered in matmul
+  return X @ coef_ + self.intercept_
+/Users/mahyar/Smart Lab/Lab/ML/ASR/.venv/lib/python3.9/site-packages/sklearn/linear_model/_base.py:279: RuntimeWarning: invalid value encountered in matmul
+  return X @ coef_ + self.intercept_
+/Users/mahyar/Smart Lab/Lab/ML/ASR/.venv/lib/python3.9/site-packages/pytorch_tabnet/callbacks.py:172: UserWarning: Best weights from best epoch are automatically used!
+  warnings.warn(wrn_msg)
+/Users/mahyar/Smart Lab/Lab/ML/ASR/.venv/lib/python3.9/site-packages/sklearn/utils/extmath.py:203: RuntimeWarning: divide by zero encountered in matmul
+  ret = a @ b
+/Users/mahyar/Smart Lab/Lab/ML/ASR/.venv/lib/python3.9/site-packages/sklearn/utils/extmath.py:203: RuntimeWarning: overflow encountered in matmul
+  ret = a @ b
+/Users/mahyar/Smart Lab/Lab/ML/ASR/.venv/lib/python3.9/site-packages/sklearn/utils/extmath.py:203: RuntimeWarning: invalid value encountered in matmul
+  ret = a @ b
+/Users/mahyar/Smart Lab/Lab/ML/ASR/.venv/lib/python3.9/site-packages/sklearn/linear_model/_base.py:279: RuntimeWarning: divide by zero encountered in matmul
+  return X @ coef_ + self.intercept_
+/Users/mahyar/Smart Lab/Lab/ML/ASR/.venv/lib/python3.9/site-packages/sklearn/linear_model/_base.py:279: RuntimeWarning: overflow encountered in matmul
+  return X @ coef_ + self.intercept_
+/Users/mahyar/Smart Lab/Lab/ML/ASR/.venv/lib/python3.9/site-packages/sklearn/linear_model/_base.py:279: RuntimeWarning: invalid value encountered in matmul
+  return X @ coef_ + self.intercept_
+/Users/mahyar/Smart Lab/Lab/ML/ASR/.venv/lib/python3.9/site-packages/pytorch_tabnet/callbacks.py:172: UserWarning: Best weights from best epoch are automatically used!
+  warnings.warn(wrn_msg)
+/Users/mahyar/Smart Lab/Lab/ML/ASR/.venv/lib/python3.9/site-packages/sklearn/utils/extmath.py:203: RuntimeWarning: divide by zero encountered in matmul
+  ret = a @ b
+/Users/mahyar/Smart Lab/Lab/ML/ASR/.venv/lib/python3.9/site-packages/sklearn/utils/extmath.py:203: RuntimeWarning: overflow encountered in matmul
+  ret = a @ b
+/Users/mahyar/Smart Lab/Lab/ML/ASR/.venv/lib/python3.9/site-packages/sklearn/utils/extmath.py:203: RuntimeWarning: invalid value encountered in matmul
+  ret = a @ b
+/Users/mahyar/Smart Lab/Lab/ML/ASR/.venv/lib/python3.9/site-packages/sklearn/linear_model/_base.py:279: RuntimeWarning: divide by zero encountered in matmul
+  return X @ coef_ + self.intercept_
+/Users/mahyar/Smart Lab/Lab/ML/ASR/.venv/lib/python3.9/site-packages/sklearn/linear_model/_base.py:279: RuntimeWarning: overflow encountered in matmul
+  return X @ coef_ + self.intercept_
+/Users/mahyar/Smart Lab/Lab/ML/ASR/.venv/lib/python3.9/site-packages/sklearn/linear_model/_base.py:279: RuntimeWarning: invalid value encountered in matmul
+  return X @ coef_ + self.intercept_
+/Users/mahyar/Smart Lab/Lab/ML/ASR/.venv/lib/python3.9/site-packages/pytorch_tabnet/callbacks.py:172: UserWarning: Best weights from best epoch are automatically used!
+  warnings.warn(wrn_msg)
+/Users/mahyar/Smart Lab/Lab/ML/ASR/.venv/lib/python3.9/site-packages/sklearn/utils/extmath.py:203: RuntimeWarning: divide by zero encountered in matmul
+  ret = a @ b
+/Users/mahyar/Smart Lab/Lab/ML/ASR/.venv/lib/python3.9/site-packages/sklearn/utils/extmath.py:203: RuntimeWarning: overflow encountered in matmul
+  ret = a @ b
+/Users/mahyar/Smart Lab/Lab/ML/ASR/.venv/lib/python3.9/site-packages/sklearn/utils/extmath.py:203: RuntimeWarning: invalid value encountered in matmul
+  ret = a @ b
+/Users/mahyar/Smart Lab/Lab/ML/ASR/.venv/lib/python3.9/site-packages/sklearn/linear_model/_base.py:279: RuntimeWarning: divide by zero encountered in matmul
+  return X @ coef_ + self.intercept_
+/Users/mahyar/Smart Lab/Lab/ML/ASR/.venv/lib/python3.9/site-packages/sklearn/linear_model/_base.py:279: RuntimeWarning: overflow encountered in matmul
+  return X @ coef_ + self.intercept_
+/Users/mahyar/Smart Lab/Lab/ML/ASR/.venv/lib/python3.9/site-packages/sklearn/linear_model/_base.py:279: RuntimeWarning: invalid value encountered in matmul
+  return X @ coef_ + self.intercept_
+/Users/mahyar/Smart Lab/Lab/ML/ASR/.venv/lib/python3.9/site-packages/pytorch_tabnet/callbacks.py:172: UserWarning: Best weights from best epoch are automatically used!
+  warnings.warn(wrn_msg)
+/Users/mahyar/Smart Lab/Lab/ML/ASR/.venv/lib/python3.9/site-packages/sklearn/utils/extmath.py:203: RuntimeWarning: divide by zero encountered in matmul
+  ret = a @ b
+/Users/mahyar/Smart Lab/Lab/ML/ASR/.venv/lib/python3.9/site-packages/sklearn/utils/extmath.py:203: RuntimeWarning: overflow encountered in matmul
+  ret = a @ b
+/Users/mahyar/Smart Lab/Lab/ML/ASR/.venv/lib/python3.9/site-packages/sklearn/utils/extmath.py:203: RuntimeWarning: invalid value encountered in matmul
+  ret = a @ b
+/Users/mahyar/Smart Lab/Lab/ML/ASR/.venv/lib/python3.9/site-packages/sklearn/linear_model/_base.py:279: RuntimeWarning: divide by zero encountered in matmul
+  return X @ coef_ + self.intercept_
+/Users/mahyar/Smart Lab/Lab/ML/ASR/.venv/lib/python3.9/site-packages/sklearn/linear_model/_base.py:279: RuntimeWarning: overflow encountered in matmul
+  return X @ coef_ + self.intercept_
+/Users/mahyar/Smart Lab/Lab/ML/ASR/.venv/lib/python3.9/site-packages/sklearn/linear_model/_base.py:279: RuntimeWarning: invalid value encountered in matmul
+  return X @ coef_ + self.intercept_
+/Users/mahyar/Smart Lab/Lab/ML/ASR/.venv/lib/python3.9/site-packages/pytorch_tabnet/callbacks.py:172: UserWarning: Best weights from best epoch are automatically used!
+  warnings.warn(wrn_msg)
+/Users/mahyar/Smart Lab/Lab/ML/ASR/.venv/lib/python3.9/site-packages/sklearn/utils/extmath.py:203: RuntimeWarning: divide by zero encountered in matmul
+  ret = a @ b
+/Users/mahyar/Smart Lab/Lab/ML/ASR/.venv/lib/python3.9/site-packages/sklearn/utils/extmath.py:203: RuntimeWarning: overflow encountered in matmul
+  ret = a @ b
+/Users/mahyar/Smart Lab/Lab/ML/ASR/.venv/lib/python3.9/site-packages/sklearn/utils/extmath.py:203: RuntimeWarning: invalid value encountered in matmul
+  ret = a @ b
+/Users/mahyar/Smart Lab/Lab/ML/ASR/.venv/lib/python3.9/site-packages/sklearn/linear_model/_base.py:279: RuntimeWarning: divide by zero encountered in matmul
+  return X @ coef_ + self.intercept_
+/Users/mahyar/Smart Lab/Lab/ML/ASR/.venv/lib/python3.9/site-packages/sklearn/linear_model/_base.py:279: RuntimeWarning: overflow encountered in matmul
+  return X @ coef_ + self.intercept_
+/Users/mahyar/Smart Lab/Lab/ML/ASR/.venv/lib/python3.9/site-packages/sklearn/linear_model/_base.py:279: RuntimeWarning: invalid value encountered in matmul
+  return X @ coef_ + self.intercept_
+/Users/mahyar/Smart Lab/Lab/ML/ASR/.venv/lib/python3.9/site-packages/pytorch_tabnet/callbacks.py:172: UserWarning: Best weights from best epoch are automatically used!
+  warnings.warn(wrn_msg)
+/Users/mahyar/Smart Lab/Lab/ML/ASR/.venv/lib/python3.9/site-packages/sklearn/utils/extmath.py:203: RuntimeWarning: divide by zero encountered in matmul
+  ret = a @ b
+/Users/mahyar/Smart Lab/Lab/ML/ASR/.venv/lib/python3.9/site-packages/sklearn/utils/extmath.py:203: RuntimeWarning: overflow encountered in matmul
+  ret = a @ b
+/Users/mahyar/Smart Lab/Lab/ML/ASR/.venv/lib/python3.9/site-packages/sklearn/utils/extmath.py:203: RuntimeWarning: invalid value encountered in matmul
+  ret = a @ b
+/Users/mahyar/Smart Lab/Lab/ML/ASR/.venv/lib/python3.9/site-packages/sklearn/linear_model/_base.py:279: RuntimeWarning: divide by zero encountered in matmul
+  return X @ coef_ + self.intercept_
+/Users/mahyar/Smart Lab/Lab/ML/ASR/.venv/lib/python3.9/site-packages/sklearn/linear_model/_base.py:279: RuntimeWarning: overflow encountered in matmul
+  return X @ coef_ + self.intercept_
+/Users/mahyar/Smart Lab/Lab/ML/ASR/.venv/lib/python3.9/site-packages/sklearn/linear_model/_base.py:279: RuntimeWarning: invalid value encountered in matmul
+  return X @ coef_ + self.intercept_
+/Users/mahyar/Smart Lab/Lab/ML/ASR/.venv/lib/python3.9/site-packages/pytorch_tabnet/callbacks.py:172: UserWarning: Best weights from best epoch are automatically used!
+  warnings.warn(wrn_msg)
+/Users/mahyar/Smart Lab/Lab/ML/ASR/.venv/lib/python3.9/site-packages/sklearn/utils/extmath.py:203: RuntimeWarning: divide by zero encountered in matmul
+  ret = a @ b
+/Users/mahyar/Smart Lab/Lab/ML/ASR/.venv/lib/python3.9/site-packages/sklearn/utils/extmath.py:203: RuntimeWarning: overflow encountered in matmul
+  ret = a @ b
+/Users/mahyar/Smart Lab/Lab/ML/ASR/.venv/lib/python3.9/site-packages/sklearn/utils/extmath.py:203: RuntimeWarning: invalid value encountered in matmul
+  ret = a @ b
+/Users/mahyar/Smart Lab/Lab/ML/ASR/.venv/lib/python3.9/site-packages/sklearn/linear_model/_base.py:279: RuntimeWarning: divide by zero encountered in matmul
+  return X @ coef_ + self.intercept_
+/Users/mahyar/Smart Lab/Lab/ML/ASR/.venv/lib/python3.9/site-packages/sklearn/linear_model/_base.py:279: RuntimeWarning: overflow encountered in matmul
+  return X @ coef_ + self.intercept_
+/Users/mahyar/Smart Lab/Lab/ML/ASR/.venv/lib/python3.9/site-packages/sklearn/linear_model/_base.py:279: RuntimeWarning: invalid value encountered in matmul
+  return X @ coef_ + self.intercept_
+/Users/mahyar/Smart Lab/Lab/ML/ASR/.venv/lib/python3.9/site-packages/pytorch_tabnet/callbacks.py:172: UserWarning: Best weights from best epoch are automatically used!
+  warnings.warn(wrn_msg)
+/Users/mahyar/Smart Lab/Lab/ML/ASR/.venv/lib/python3.9/site-packages/sklearn/utils/extmath.py:203: RuntimeWarning: divide by zero encountered in matmul
+  ret = a @ b
+/Users/mahyar/Smart Lab/Lab/ML/ASR/.venv/lib/python3.9/site-packages/sklearn/utils/extmath.py:203: RuntimeWarning: overflow encountered in matmul
+  ret = a @ b
+/Users/mahyar/Smart Lab/Lab/ML/ASR/.venv/lib/python3.9/site-packages/sklearn/utils/extmath.py:203: RuntimeWarning: invalid value encountered in matmul
+  ret = a @ b
+/Users/mahyar/Smart Lab/Lab/ML/ASR/.venv/lib/python3.9/site-packages/sklearn/linear_model/_base.py:279: RuntimeWarning: divide by zero encountered in matmul
+  return X @ coef_ + self.intercept_
+/Users/mahyar/Smart Lab/Lab/ML/ASR/.venv/lib/python3.9/site-packages/sklearn/linear_model/_base.py:279: RuntimeWarning: overflow encountered in matmul
+  return X @ coef_ + self.intercept_
+/Users/mahyar/Smart Lab/Lab/ML/ASR/.venv/lib/python3.9/site-packages/sklearn/linear_model/_base.py:279: RuntimeWarning: invalid value encountered in matmul
+  return X @ coef_ + self.intercept_
+/Users/mahyar/Smart Lab/Lab/ML/ASR/.venv/lib/python3.9/site-packages/pytorch_tabnet/callbacks.py:172: UserWarning: Best weights from best epoch are automatically used!
+  warnings.warn(wrn_msg)
+/Users/mahyar/Smart Lab/Lab/ML/ASR/.venv/lib/python3.9/site-packages/sklearn/utils/extmath.py:203: RuntimeWarning: divide by zero encountered in matmul
+  ret = a @ b
+/Users/mahyar/Smart Lab/Lab/ML/ASR/.venv/lib/python3.9/site-packages/sklearn/utils/extmath.py:203: RuntimeWarning: overflow encountered in matmul
+  ret = a @ b
+/Users/mahyar/Smart Lab/Lab/ML/ASR/.venv/lib/python3.9/site-packages/sklearn/utils/extmath.py:203: RuntimeWarning: invalid value encountered in matmul
+  ret = a @ b
+/Users/mahyar/Smart Lab/Lab/ML/ASR/.venv/lib/python3.9/site-packages/sklearn/linear_model/_base.py:279: RuntimeWarning: divide by zero encountered in matmul
+  return X @ coef_ + self.intercept_
+/Users/mahyar/Smart Lab/Lab/ML/ASR/.venv/lib/python3.9/site-packages/sklearn/linear_model/_base.py:279: RuntimeWarning: overflow encountered in matmul
+  return X @ coef_ + self.intercept_
+/Users/mahyar/Smart Lab/Lab/ML/ASR/.venv/lib/python3.9/site-packages/sklearn/linear_model/_base.py:279: RuntimeWarning: invalid value encountered in matmul
+  return X @ coef_ + self.intercept_
+/Users/mahyar/Smart Lab/Lab/ML/ASR/.venv/lib/python3.9/site-packages/pytorch_tabnet/callbacks.py:172: UserWarning: Best weights from best epoch are automatically used!
+  warnings.warn(wrn_msg)
+/Users/mahyar/Smart Lab/Lab/ML/ASR/.venv/lib/python3.9/site-packages/sklearn/utils/extmath.py:203: RuntimeWarning: divide by zero encountered in matmul
+  ret = a @ b
+/Users/mahyar/Smart Lab/Lab/ML/ASR/.venv/lib/python3.9/site-packages/sklearn/utils/extmath.py:203: RuntimeWarning: overflow encountered in matmul
+  ret = a @ b
+/Users/mahyar/Smart Lab/Lab/ML/ASR/.venv/lib/python3.9/site-packages/sklearn/utils/extmath.py:203: RuntimeWarning: invalid value encountered in matmul
+  ret = a @ b
+/Users/mahyar/Smart Lab/Lab/ML/ASR/.venv/lib/python3.9/site-packages/sklearn/linear_model/_base.py:279: RuntimeWarning: divide by zero encountered in matmul
+  return X @ coef_ + self.intercept_
+/Users/mahyar/Smart Lab/Lab/ML/ASR/.venv/lib/python3.9/site-packages/sklearn/linear_model/_base.py:279: RuntimeWarning: overflow encountered in matmul
+  return X @ coef_ + self.intercept_
+/Users/mahyar/Smart Lab/Lab/ML/ASR/.venv/lib/python3.9/site-packages/sklearn/linear_model/_base.py:279: RuntimeWarning: invalid value encountered in matmul
+  return X @ coef_ + self.intercept_
+/Users/mahyar/Smart Lab/Lab/ML/ASR/.venv/lib/python3.9/site-packages/pytorch_tabnet/callbacks.py:172: UserWarning: Best weights from best epoch are automatically used!
+  warnings.warn(wrn_msg)
+/Users/mahyar/Smart Lab/Lab/ML/ASR/.venv/lib/python3.9/site-packages/sklearn/utils/extmath.py:203: RuntimeWarning: divide by zero encountered in matmul
+  ret = a @ b
+/Users/mahyar/Smart Lab/Lab/ML/ASR/.venv/lib/python3.9/site-packages/sklearn/utils/extmath.py:203: RuntimeWarning: overflow encountered in matmul
+  ret = a @ b
+/Users/mahyar/Smart Lab/Lab/ML/ASR/.venv/lib/python3.9/site-packages/sklearn/utils/extmath.py:203: RuntimeWarning: invalid value encountered in matmul
+  ret = a @ b
+/Users/mahyar/Smart Lab/Lab/ML/ASR/.venv/lib/python3.9/site-packages/sklearn/linear_model/_base.py:279: RuntimeWarning: divide by zero encountered in matmul
+  return X @ coef_ + self.intercept_
+/Users/mahyar/Smart Lab/Lab/ML/ASR/.venv/lib/python3.9/site-packages/sklearn/linear_model/_base.py:279: RuntimeWarning: overflow encountered in matmul
+  return X @ coef_ + self.intercept_
+/Users/mahyar/Smart Lab/Lab/ML/ASR/.venv/lib/python3.9/site-packages/sklearn/linear_model/_base.py:279: RuntimeWarning: invalid value encountered in matmul
+  return X @ coef_ + self.intercept_
+/Users/mahyar/Smart Lab/Lab/ML/ASR/.venv/lib/python3.9/site-packages/pytorch_tabnet/callbacks.py:172: UserWarning: Best weights from best epoch are automatically used!
+  warnings.warn(wrn_msg)
+/Users/mahyar/Smart Lab/Lab/ML/ASR/.venv/lib/python3.9/site-packages/sklearn/utils/extmath.py:203: RuntimeWarning: divide by zero encountered in matmul
+  ret = a @ b
+/Users/mahyar/Smart Lab/Lab/ML/ASR/.venv/lib/python3.9/site-packages/sklearn/utils/extmath.py:203: RuntimeWarning: overflow encountered in matmul
+  ret = a @ b
+/Users/mahyar/Smart Lab/Lab/ML/ASR/.venv/lib/python3.9/site-packages/sklearn/utils/extmath.py:203: RuntimeWarning: invalid value encountered in matmul
+  ret = a @ b
+/Users/mahyar/Smart Lab/Lab/ML/ASR/.venv/lib/python3.9/site-packages/sklearn/linear_model/_base.py:279: RuntimeWarning: divide by zero encountered in matmul
+  return X @ coef_ + self.intercept_
+/Users/mahyar/Smart Lab/Lab/ML/ASR/.venv/lib/python3.9/site-packages/sklearn/linear_model/_base.py:279: RuntimeWarning: overflow encountered in matmul
+  return X @ coef_ + self.intercept_
+/Users/mahyar/Smart Lab/Lab/ML/ASR/.venv/lib/python3.9/site-packages/sklearn/linear_model/_base.py:279: RuntimeWarning: invalid value encountered in matmul
+  return X @ coef_ + self.intercept_
+/Users/mahyar/Smart Lab/Lab/ML/ASR/.venv/lib/python3.9/site-packages/pytorch_tabnet/callbacks.py:172: UserWarning: Best weights from best epoch are automatically used!
+  warnings.warn(wrn_msg)
+/Users/mahyar/Smart Lab/Lab/ML/ASR/asr_publication_pipeline.py:351: UserWarning: FigureCanvasAgg is non-interactive, and thus cannot be shown
+  plt.show()
+/Users/mahyar/Smart Lab/Lab/ML/ASR/asr_publication_pipeline.py:351: UserWarning: FigureCanvasAgg is non-interactive, and thus cannot be shown
+  plt.show()
+/Users/mahyar/Smart Lab/Lab/ML/ASR/asr_publication_pipeline.py:351: UserWarning: FigureCanvasAgg is non-interactive, and thus cannot be shown
+  plt.show()
+/Users/mahyar/Smart Lab/Lab/ML/ASR/asr_publication_pipeline.py:351: UserWarning: FigureCanvasAgg is non-interactive, and thus cannot be shown
+  plt.show()
+/Users/mahyar/Smart Lab/Lab/ML/ASR/asr_publication_pipeline.py:351: UserWarning: FigureCanvasAgg is non-interactive, and thus cannot be shown
+  plt.show()
+/Users/mahyar/Smart Lab/Lab/ML/ASR/asr_publication_pipeline.py:351: UserWarning: FigureCanvasAgg is non-interactive, and thus cannot be shown
+  plt.show()
+/Users/mahyar/Smart Lab/Lab/ML/ASR/asr_publication_pipeline.py:351: UserWarning: FigureCanvasAgg is non-interactive, and thus cannot be shown
+  plt.show()
+/Users/mahyar/Smart Lab/Lab/ML/ASR/asr_publication_pipeline.py:351: UserWarning: FigureCanvasAgg is non-interactive, and thus cannot be shown
+  plt.show()
+/Users/mahyar/Smart Lab/Lab/ML/ASR/asr_publication_pipeline.py:351: UserWarning: FigureCanvasAgg is non-interactive, and thus cannot be shown
+  plt.show()
+
+==============================================================================
+ENVIRONMENT
+==============================================================================
+python      : 3.9.6
+numpy       : 2.0.2
+pandas      : 2.3.3
+sklearn     : 1.6.1
+matplotlib  : 3.9.4
+shap        : 0.49.1
+tabpfn      : 8.0.7 (device=cpu)
+tabnet      : available
+
+==============================================================================
+TABPFN AVAILABILITY
+==============================================================================
+TabPFN is unavailable: disabled by ASR_USE_TABPFN=0
+Accept the model licence at https://huggingface.co/Prior-Labs and
+supply a token via the TABPFN_TOKEN Colab secret or environment
+variable, and select a GPU runtime.
+Continuing without TabPFN.
+excluded by ASR_SKIP_MODELS: MLP
+
+==============================================================================
+STAGE 0  DATA AUDIT
+==============================================================================
+dropped 2 description/missing-target row(s)
+loaded /Users/mahyar/Smart Lab/Lab/ML/Final Dataset/ASR_FinalE-ComCo.csv: X=(1999, 29), y=(1999,)
+  x15 levels (3): ['0', 'C', 'F']
+  x28 levels (3): ['0.18 M NaOH', '1N NaOH', 'Water Moisture']
+  Standard levels (2): ['ASTM C1260 (C1567)', 'ASTM C1293']
+  identifier column: 1999 unique values over 1999 rows
+  mixture groups: 210 for 1999 rows (median 6 rows per group, max 91)
+  rows sharing a mixture with another row: 99.1%
+  duplicated predictor rows: 26
+saved figures/Fig_01_DatasetOverview.png/.pdf/.svg
+
+==============================================================================
+STAGE 0b  PARTITIONING
+==============================================================================
+  development: 1596 rows / 169 mixtures
+  locked holdout: 403 rows / 41 mixtures (disjoint)
+
+==============================================================================
+STAGE 1  MODEL COMPARISON
+==============================================================================
+candidates: Ridge, HistGBM, TabNet, LightGBM, XGBoost, CatBoost, LightGBM+CatBoost (50/50), Stacked ensemble
+
+random-row CV: 15 folds x 8 models
+  random-row CV: fold 1/15 complete
+  random-row CV: fold 2/15 complete
+  random-row CV: fold 3/15 complete
+  random-row CV: fold 4/15 complete
+  random-row CV: fold 5/15 complete
+  random-row CV: fold 6/15 complete
+  random-row CV: fold 7/15 complete
+  random-row CV: fold 8/15 complete
+  random-row CV: fold 9/15 complete
+  random-row CV: fold 10/15 complete
+  random-row CV: fold 11/15 complete
+  random-row CV: fold 12/15 complete
+  random-row CV: fold 13/15 complete
+  random-row CV: fold 14/15 complete
+  random-row CV: fold 15/15 complete
+
+mixture-grouped CV: 10 folds x 8 models
+  mixture-grouped CV: fold 1/10 complete
+  mixture-grouped CV: fold 2/10 complete
+  mixture-grouped CV: fold 3/10 complete
+  mixture-grouped CV: fold 4/10 complete
+  mixture-grouped CV: fold 5/10 complete
+  mixture-grouped CV: fold 6/10 complete
+  mixture-grouped CV: fold 7/10 complete
+  mixture-grouped CV: fold 8/10 complete
+  mixture-grouped CV: fold 9/10 complete
+  mixture-grouped CV: fold 10/10 complete
+
+random-row CV
+                    model   R2_mean  RMSE_mean  MAE_mean  MedAPE_mean
+         Stacked ensemble    0.9770     0.0381    0.0200       6.4565
+LightGBM+CatBoost (50/50)    0.9761     0.0389    0.0204       6.2776
+                 CatBoost    0.9758     0.0391    0.0196       5.8310
+                  XGBoost    0.9742     0.0405    0.0218       6.9885
+                 LightGBM    0.9720     0.0424    0.0237       8.0489
+                  HistGBM    0.9700     0.0442    0.0247       8.3109
+                   TabNet    0.8384     0.1026    0.0651      24.8352
+                    Ridge    0.4145     0.1970    0.1364      46.4271
+
+mixture-grouped CV
+                    model   R2_mean  RMSE_mean  MAE_mean  MedAPE_mean
+                  HistGBM    0.6117     0.1511    0.0961      35.0995
+                  XGBoost    0.5902     0.1529    0.0956      32.2132
+LightGBM+CatBoost (50/50)    0.5770     0.1573    0.0995      35.9022
+                 LightGBM    0.5709     0.1577    0.0999      35.9471
+         Stacked ensemble    0.5717     0.1580    0.0996      35.6691
+                 CatBoost    0.5601     0.1610    0.1031      37.7164
+                   TabNet    0.5067     0.1711    0.1154      44.2732
+                    Ridge    0.2187     0.2181    0.1596      63.2690
+
+repeated-measure optimism (random-row CV minus mixture-grouped CV)
+                    model  R2_optimism  RMSE_understatement_pct
+                    Ridge       0.1958                   9.6636
+                  HistGBM       0.3583                  70.7695
+                   TabNet       0.3317                  40.0141
+                 LightGBM       0.4010                  73.0960
+                  XGBoost       0.3840                  73.5117
+                 CatBoost       0.4157                  75.7133
+LightGBM+CatBoost (50/50)       0.3991                  75.2470
+         Stacked ensemble       0.4053                  75.8721
+
+selected model: HistGBM (lowest mixture-grouped CV RMSE on the development partition)
+saved figures/Fig_02_ModelComparison.png/.pdf/.svg
+saved figures/Fig_03_RepeatedMeasureOptimism.png/.pdf/.svg
+
+==============================================================================
+STAGE 1b  TARGET-TRANSFORM SENSITIVITY
+==============================================================================
+  boxcox_fixed  : R2=0.6117  RMSE=0.1511  MAE=0.0961
+  boxcox_mle    : R2=0.6039  RMSE=0.1531  MAE=0.0979
+  log1p         : R2=0.6134  RMSE=0.1505  MAE=0.0961
+  identity      : R2=0.6153  RMSE=0.1511  MAE=0.0970
+  lowest RMSE: log1p; the analysis retains the fixed Box-Cox transform for comparability
+
+==============================================================================
+STAGE 2  PERMUTATION IMPORTANCE
+==============================================================================
+  fold 1/5 complete
+  fold 2/5 complete
+  fold 3/5 complete
+  fold 4/5 complete
+  fold 5/5 complete
+
+most important inputs for HistGBM:
+raw_factor                        label  delta_RMSE_mean
+       x29                  Testing Age           0.1383
+        x3 Mean reactive aggregate size           0.0637
+  Standard                     Standard           0.0572
+        x4                          w/c           0.0527
+        x1        Silica content (Sand)           0.0489
+       x13             MK Replacement %           0.0353
+       x28             Curing Condition           0.0303
+       x20             FA Replacement %           0.0134
+saved figures/Fig_04_PermutationImportance.png/.pdf/.svg
+
+==============================================================================
+STAGE 3  CUMULATIVE INPUT REMOVAL
+==============================================================================
+  210 model fits (21 steps x 10 folds x 1 fit(s) per fold). Lower MAX_RAW_FACTORS_TO_REMOVE or GROUPED_CV_REPEATS to shorten this stage.
+  step  0/20: removed none      RMSE=0.1511  R2=0.6117
+  step  1/20: removed x15       RMSE=0.1518  R2=0.6084
+  step  2/20: removed x19       RMSE=0.1514  R2=0.6099
+  step  3/20: removed x27       RMSE=0.1510  R2=0.6113
+  step  4/20: removed x24       RMSE=0.1499  R2=0.6166
+  step  5/20: removed x18       RMSE=0.1503  R2=0.6154
+  step  6/20: removed x6        RMSE=0.1501  R2=0.6183
+  step  7/20: removed x23       RMSE=0.1508  R2=0.6133
+  step  8/20: removed x17       RMSE=0.1510  R2=0.6121
+  step  9/20: removed X21       RMSE=0.1517  R2=0.6090
+  step 10/20: removed x16       RMSE=0.1514  R2=0.6103
+  step 11/20: removed x12       RMSE=0.1511  R2=0.6112
+  step 12/20: removed x22       RMSE=0.1509  R2=0.6135
+  step 13/20: removed x14       RMSE=0.1505  R2=0.6153
+  step 14/20: removed x7        RMSE=0.1489  R2=0.6282
+  step 15/20: removed x26       RMSE=0.1495  R2=0.6239
+  step 16/20: removed x10       RMSE=0.1511  R2=0.6176
+  step 17/20: removed x25       RMSE=0.1548  R2=0.5993
+  step 18/20: removed x11       RMSE=0.1554  R2=0.5980
+  step 19/20: removed x2        RMSE=0.1553  R2=0.5974
+  step 20/20: removed x9        RMSE=0.1629  R2=0.5544
+
+  last safe removal: 16 input(s); 13 retained
+  first step outside tolerance: 17 (x25: Replacement % (Nano-silica)), RMSE +2.5%
+saved figures/Fig_05_CumulativeRemoval.png/.pdf/.svg
+
+==============================================================================
+STAGE 4  LOCKED HOLDOUT
+==============================================================================
+                    subset        R2      RMSE       MAE    MedAPE
+       all measured inputs    0.8062    0.1221    0.0787   25.1581
+reduced inputs (remove 16)    0.7811    0.1298    0.0851   29.4262
+
+  mixture-disjoint holdout : R2=0.7811  RMSE=0.1298
+  random-row holdout       : R2=0.9324  RMSE=0.0690  (optimistic reference)
+
+evaluation summary
+                             Evaluation        R2      RMSE       MAE    MedAPE                            Role
+     Mixture-grouped CV (mean of folds)    0.6117    0.1511    0.0961   35.0995 primary generalization estimate
+Mixture-grouped CV (pooled out-of-fold)    0.6414    0.1545    0.0945   34.7336   out-of-sample prediction plot
+        Locked mixture-disjoint holdout    0.7811    0.1298    0.0851   29.4262             final internal test
+                     Random-row holdout    0.9324    0.0690    0.0380   11.6702       optimistic reference only
+            Development fit (in-sample)    0.9726    0.0427    0.0208    6.5041          overfitting check only
+saved figures/Fig_06_ActualVsPredicted.png/.pdf/.svg
+saved figures/Fig_07_ResidualDiagnostics.png/.pdf/.svg
+
+==============================================================================
+STAGE 5  CONFORMAL PREDICTION INTERVALS
+==============================================================================
+ nominal_coverage  half_width  empirical_coverage  mean_interval_width  n_calibration_rows  n_holdout_rows
+           0.8000      0.1858              0.8015               0.3716                 409             403
+           0.9000      0.3435              0.8908               0.6870                 409             403
+           0.9500      0.5302              0.9628               1.0603                 409             403
+saved figures/Fig_08_ConformalIntervals.png/.pdf/.svg
+
+==============================================================================
+STAGE 6  REACTIVITY CLASSIFICATION
+==============================================================================
+ limit_percent  accuracy  sensitivity  specificity  matthews_correlation  roc_auc_using_predicted_expansion
+        0.0400    0.8983       0.9817       0.5333                0.6304                             0.9262
+        0.1000    0.8511       0.9524       0.6385                0.6484                             0.9346
+        0.2000    0.8734       0.9454       0.8136                0.7572                             0.9587
+saved figures/Fig_09_ReactivityClassification.png/.pdf/.svg
+
+==============================================================================
+STAGE 7  Y-RANDOMIZATION CONTROL
+==============================================================================
+  permuted-target holdout R2 = -0.3001 +/- 0.1114  (true model 0.7811)
+
+==============================================================================
+STAGE 8  LEARNING CURVE
+==============================================================================
+    34 mixtures ( 291 rows): R2=-0.4747  RMSE=0.3368
+    68 mixtures ( 669 rows): R2=0.4321  RMSE=0.2090
+   101 mixtures ( 903 rows): R2=0.6657  RMSE=0.1604
+   135 mixtures (1216 rows): R2=0.7561  RMSE=0.1370
+   169 mixtures (1596 rows): R2=0.7811  RMSE=0.1298
+saved figures/Fig_10_ControlsAndDataEfficiency.png/.pdf/.svg
+
+==============================================================================
+STAGE 9  CALIBRATION AND ERROR REGIMES
+==============================================================================
+saved figures/Fig_11_CalibrationAndErrorRegimes.png/.pdf/.svg
+
+==============================================================================
+STAGE 10  SHAP ATTRIBUTION
+==============================================================================
+  explaining 200 holdout rows against 50 background rows, 81 evaluations per row
+  approximately 810,000 model rows; reduce SHAP_EXPLAIN_ROWS or SHAP_BACKGROUND_ROWS to shorten this stage
+PermutationExplainer explainer:  65%|██████▌   | 130/200 [00:00<?, ?it/s]PermutationExplainer explainer:  66%|██████▋   | 133/200 [00:10<00:03, 20.13it/s]PermutationExplainer explainer:  68%|██████▊   | 136/200 [00:10<00:04, 15.60it/s]PermutationExplainer explainer:  69%|██████▉   | 138/200 [00:10<00:04, 14.90it/s]PermutationExplainer explainer:  70%|███████   | 140/200 [00:10<00:04, 14.49it/s]PermutationExplainer explainer:  71%|███████   | 142/200 [00:10<00:04, 14.31it/s]PermutationExplainer explainer:  72%|███████▏  | 144/200 [00:10<00:03, 14.17it/s]PermutationExplainer explainer:  73%|███████▎  | 146/200 [00:11<00:03, 13.88it/s]PermutationExplainer explainer:  74%|███████▍  | 148/200 [00:11<00:03, 13.75it/s]PermutationExplainer explainer:  75%|███████▌  | 150/200 [00:11<00:03, 13.71it/s]PermutationExplainer explainer:  76%|███████▌  | 152/200 [00:11<00:03, 13.72it/s]PermutationExplainer explainer:  77%|███████▋  | 154/200 [00:11<00:03, 13.70it/s]PermutationExplainer explainer:  78%|███████▊  | 156/200 [00:11<00:03, 13.67it/s]PermutationExplainer explainer:  79%|███████▉  | 158/200 [00:12<00:03, 13.67it/s]PermutationExplainer explainer:  80%|████████  | 160/200 [00:12<00:02, 13.43it/s]PermutationExplainer explainer:  81%|████████  | 162/200 [00:12<00:02, 13.58it/s]PermutationExplainer explainer:  82%|████████▏ | 164/200 [00:12<00:02, 13.71it/s]PermutationExplainer explainer:  83%|████████▎ | 166/200 [00:12<00:02, 13.74it/s]PermutationExplainer explainer:  84%|████████▍ | 168/200 [00:12<00:02, 13.86it/s]PermutationExplainer explainer:  85%|████████▌ | 170/200 [00:12<00:02, 13.94it/s]PermutationExplainer explainer:  86%|████████▌ | 172/200 [00:13<00:02, 13.82it/s]PermutationExplainer explainer:  87%|████████▋ | 174/200 [00:13<00:01, 13.94it/s]PermutationExplainer explainer:  88%|████████▊ | 176/200 [00:13<00:01, 14.00it/s]PermutationExplainer explainer:  89%|████████▉ | 178/200 [00:13<00:01, 14.08it/s]PermutationExplainer explainer:  90%|█████████ | 180/200 [00:13<00:01, 14.13it/s]PermutationExplainer explainer:  91%|█████████ | 182/200 [00:13<00:01, 14.04it/s]PermutationExplainer explainer:  92%|█████████▏| 184/200 [00:13<00:01, 13.98it/s]PermutationExplainer explainer:  93%|█████████▎| 186/200 [00:14<00:01, 13.94it/s]PermutationExplainer explainer:  94%|█████████▍| 188/200 [00:14<00:00, 14.05it/s]PermutationExplainer explainer:  95%|█████████▌| 190/200 [00:14<00:00, 14.14it/s]PermutationExplainer explainer:  96%|█████████▌| 192/200 [00:14<00:00, 14.05it/s]PermutationExplainer explainer:  97%|█████████▋| 194/200 [00:14<00:00, 14.12it/s]PermutationExplainer explainer:  98%|█████████▊| 196/200 [00:14<00:00, 13.72it/s]PermutationExplainer explainer:  99%|█████████▉| 198/200 [00:14<00:00, 13.59it/s]PermutationExplainer explainer: 100%|██████████| 200/200 [00:15<00:00, 13.58it/s]PermutationExplainer explainer: 201it [00:15,  4.69it/s]                         
+/Users/mahyar/Smart Lab/Lab/ML/ASR/asr_publication_pipeline.py:351: UserWarning: FigureCanvasAgg is non-interactive, and thus cannot be shown
+  plt.show()
+/Users/mahyar/Smart Lab/Lab/ML/ASR/asr_publication_pipeline.py:351: UserWarning: FigureCanvasAgg is non-interactive, and thus cannot be shown
+  plt.show()
+/Users/mahyar/Smart Lab/Lab/ML/ASR/asr_publication_pipeline.py:351: UserWarning: FigureCanvasAgg is non-interactive, and thus cannot be shown
+  plt.show()
+/Users/mahyar/Smart Lab/Lab/ML/ASR/asr_publication_pipeline.py:351: UserWarning: FigureCanvasAgg is non-interactive, and thus cannot be shown
+  plt.show()
+  additivity check: max |model - base - sum(SHAP)| = 1.11e-15
+  split-half rank correlation = 0.791; top-10 overlap = 9/10
+saved figures/Fig_12_ShapBeeswarm.png/.pdf/.svg
+saved figures/Fig_13_ShapImportance.png/.pdf/.svg
+saved figures/Fig_14_ShapDependence.png/.pdf/.svg
+saved figures/Fig_15_AgeShapByCuring.png/.pdf/.svg
+
+==============================================================================
+REPORTING
+==============================================================================
+                             Item                  Value
+                   Analysis scope                    all
+                     Measurements              1999 rows
+                Distinct mixtures                    210
+            Repeated-measure rows                    99%
+                  Measured inputs                     29
+                Engineered inputs 0 (excluded by design)
+              Candidates compared                      8
+                   Selected model                HistGBM
+                    Grouped CV R2                 0.6117
+              Grouped CV RMSE (%)                 0.1511
+    Holdout R2 (mixture-disjoint)                 0.7811
+                 Holdout RMSE (%)                 0.1298
+Holdout R2 (random-row reference)                 0.9324
+  Inputs retained after reduction                     13
+
+wrote and verified ASR_publication_outputs.zip (84 files, 9,456,616 bytes)
+  figures: 15
+  tables : 37
